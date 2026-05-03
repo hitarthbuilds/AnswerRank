@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import {
-  createMockDiagnoseResponse,
-  normalizeCompetitorsInput,
-} from "@/lib/mock-data";
+import { normalizeCompetitorsInput } from "@/lib/mock-data";
+import { generateDiagnoseResponse } from "@/lib/server/diagnose";
 import type { DiagnoseRequest } from "@/lib/types";
 
 type ErrorResponse = {
@@ -66,5 +64,5 @@ export async function POST(request: Request) {
     region: readOptionalString(payload.region),
   };
 
-  return NextResponse.json(createMockDiagnoseResponse(normalizedRequest));
+  return NextResponse.json(await generateDiagnoseResponse(normalizedRequest));
 }

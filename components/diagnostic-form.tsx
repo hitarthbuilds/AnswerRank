@@ -8,6 +8,7 @@ const regions = [
   "United States",
   "Canada",
   "United Kingdom",
+  "India",
   "Australia",
   "Europe",
   "Global",
@@ -93,7 +94,7 @@ export function DiagnosticForm({
           <FormField
             label="Product URL"
             className="md:col-span-1"
-            hint="Optional listing or PDP URL. Firecrawl is intentionally deferred."
+            hint="Optional listing or PDP URL. Firecrawl can extract product-page context in live mode."
           >
             <input
               name="productUrl"
@@ -188,8 +189,8 @@ export function DiagnosticForm({
 
           <div className="md:col-span-2 flex flex-col gap-3 border-t border-slate-200/80 pt-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-500">
-              Phase 3 now posts the form to the mock `/api/diagnose` route and
-              renders the returned report.
+              The form posts to `/api/diagnose`, supports live Gemini mode, and
+              still falls back cleanly to the stable demo report.
             </p>
             <button
               type="submit"

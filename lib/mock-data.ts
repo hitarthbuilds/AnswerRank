@@ -3,11 +3,13 @@ import { parseProviderResponse } from "@/lib/parser";
 import { calculateOverallScore, calculateScoreBreakdown } from "@/lib/scoring";
 import { SAMPLE_DIAGNOSTIC_VALUES } from "@/lib/sample-input";
 import type {
+  DiagnoseMetadata,
   DiagnoseRequest,
   DiagnoseResponse,
   DiagnosticFormValues,
   FAQItem,
   ModelResult,
+  ProviderError,
   ProviderId,
   RawModelResponse,
 } from "@/lib/types";
@@ -103,7 +105,7 @@ function createFaqItems(productName: string): FAQItem[] {
   ];
 }
 
-function createSeededRawResponses(
+export function createSeededRawResponses(
   targetQuery: string,
 ): RawModelResponse[] {
   return [
@@ -191,11 +193,16 @@ function buildModelResults(
 function buildInsights(
   productDescription: string | undefined,
   competitorName: string | undefined,
+  source: DiagnoseResponse["source"],
 ) {
+  const providerContext =
+    source === "mock" ? "seeded provider responses" : "live provider output";
+  const providerVerb = source === "mock" ? "reward" : "rewards";
+
   return [
     competitorName
-      ? `${competitorName} appears more consistently because the seeded provider responses reward clearer trust and dosage framing.`
-      : "The seeded provider responses reward clearer trust and dosage framing than the current listing copy.",
+      ? `${competitorName} appears more consistently because the ${providerContext} ${providerVerb} clearer trust and dosage framing.`
+      : `The ${providerContext} ${providerVerb} clearer trust and dosage framing more than the current listing copy.`,
     "Senior-focused messaging is still too soft, so age-specific positioning is not surfacing strongly enough.",
     productDescription?.toLowerCase().includes("third-party")
       ? "Third-party testing exists in the description, but it is not elevated clearly enough for model summaries."
@@ -234,6 +241,42 @@ export function formValuesToDiagnoseRequest(
 export function createMockDiagnoseResponse(
   request: DiagnoseRequest = SAMPLE_DIAGNOSE_REQUEST,
 ): DiagnoseResponse {
+  return buildDiagnoseResponse({
+    request,
+    rawResponses: createSeededRawResponses(
+      withFallback(request.targetQuery, SAMPLE_DIAGNOSE_REQUEST.targetQuery),
+    ),
+    source: "mock",
+    metadata: {
+      mode: "mock",
+      source: "mock",
+      demoMode: true,
+      providersConfigured: [],
+      providersUsed: ["openai", "gemini", "anthropic"],
+      providersSkipped: [],
+      toolsUsed: [],
+      firecrawlStatus: "skipped",
+      providerErrors: [],
+    },
+    errors: [],
+  });
+}
+
+type BuildDiagnoseResponseInput = {
+  request: DiagnoseRequest;
+  rawResponses: RawModelResponse[];
+  source: DiagnoseResponse["source"];
+  metadata?: DiagnoseMetadata;
+  errors?: ProviderError[];
+};
+
+export function buildDiagnoseResponse({
+  request,
+  rawResponses,
+  source,
+  metadata,
+  errors = [],
+}: BuildDiagnoseResponseInput): DiagnoseResponse {
   const productName = withFallback(
     request.productName,
     SAMPLE_DIAGNOSE_REQUEST.productName,
@@ -248,7 +291,6 @@ export function createMockDiagnoseResponse(
     productName,
     ensureCompetitors(request.competitors),
   );
-  const rawResponses = createSeededRawResponses(targetQuery);
   const modelResults = buildModelResults(productName, competitors, rawResponses);
   const competitorLeaderboard = buildCompetitorLeaderboard({
     competitors,
@@ -263,8 +305,19 @@ export function createMockDiagnoseResponse(
   });
 
   return {
-    reportId: `mock-${slugify(productName) || "answerrank-report"}`,
-    source: "mock",
+    reportId: `${source}-${slugify(productName) || "answerrank-report"}`,
+    source,
+    metadata: metadata ?? {
+      mode: source,
+      source: source === "live" ? "gemini-live" : "mock",
+      demoMode: source === "mock",
+      providersConfigured: [],
+      providersUsed: rawResponses.map((response) => response.provider),
+      providersSkipped: [],
+      toolsUsed: [],
+      firecrawlStatus: "skipped",
+      providerErrors: errors,
+    },
     generatedAt: new Date().toISOString(),
     productName,
     productUrl: request.productUrl,
@@ -276,7 +329,11 @@ export function createMockDiagnoseResponse(
     scoreBreakdown,
     modelResults,
     competitorLeaderboard,
-    insights: buildInsights(productDescription, competitorLeaderboard[0]?.name),
+    insights: buildInsights(
+      productDescription,
+      competitorLeaderboard[0]?.name,
+      source,
+    ),
     recommendations: [
       {
         category: "title",
@@ -323,6 +380,6 @@ export function createMockDiagnoseResponse(
     ],
     faqItems: createFaqItems(productName),
     rawResponses,
-    errors: [],
+    errors,
   };
 }

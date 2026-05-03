@@ -21,7 +21,7 @@ export function RawResponsesPanel({
         Raw Responses
       </p>
       <h4 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">
-        Expand the mock provider outputs
+        Expand the provider outputs
       </h4>
       <div className="mt-5 space-y-3">
         {responses.map((response, index) => {

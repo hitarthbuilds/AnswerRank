@@ -39,11 +39,11 @@ export function RecommendationsPanel({
             Recommendations
           </p>
           <h4 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">
-            Highest-leverage copy moves from the mock report
+            Highest-leverage copy moves from the current report
           </h4>
         </div>
         <span className="rounded-full bg-[var(--accent)]/10 px-3 py-1 text-xs font-semibold text-[var(--accent)]">
-          Mock demo guidance
+          Demo-ready guidance
         </span>
       </div>
       <div className="mt-5 grid gap-4 md:grid-cols-2 2xl:grid-cols-3">

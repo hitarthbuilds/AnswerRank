@@ -126,7 +126,7 @@ export function calculateScoreBreakdown({
 
   const competitorGap = Math.max(
     0,
-    15 - (topCompetitorMentions - userProductMentions) * 5,
+    Math.min(15, 15 - (topCompetitorMentions - userProductMentions) * 5),
   );
 
   const queryRelevance = scoreQueryRelevance(
@@ -145,11 +145,12 @@ export function calculateScoreBreakdown({
 }
 
 export function calculateOverallScore(scoreBreakdown: ScoreBreakdown) {
-  return (
+  return Math.min(
+    100,
     scoreBreakdown.mentionFrequency +
-    scoreBreakdown.rankPosition +
-    scoreBreakdown.sentimentConfidence +
-    scoreBreakdown.competitorGap +
-    scoreBreakdown.queryRelevance
+      scoreBreakdown.rankPosition +
+      scoreBreakdown.sentimentConfidence +
+      scoreBreakdown.competitorGap +
+      scoreBreakdown.queryRelevance,
   );
 }

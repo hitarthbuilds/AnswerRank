@@ -1,5 +1,9 @@
 export type ProviderId = "openai" | "gemini" | "anthropic";
 
+export type ToolId = "firecrawl";
+
+export type ExternalServiceId = ProviderId | ToolId;
+
 export type ProviderStatus = "success" | "failed";
 
 export type Sentiment =
@@ -90,15 +94,32 @@ export type RawModelResponse = {
   response: string;
 };
 
+export type FirecrawlStatus = "used" | "skipped" | "failed" | "unavailable";
+
 export type ProviderError = {
-  provider: ProviderId;
+  provider: ExternalServiceId;
   message: string;
   recoverable: boolean;
+};
+
+export type DiagnoseMetadata = {
+  mode: "mock" | "live";
+  source: "mock" | "gemini-live" | "mock-fallback";
+  demoMode: boolean;
+  providersConfigured: string[];
+  providersUsed: string[];
+  providersSkipped: string[];
+  toolsUsed: string[];
+  firecrawlStatus: FirecrawlStatus;
+  fallbackReason?: string;
+  providerErrors?: ProviderError[];
+  urlContextLength?: number;
 };
 
 export type DiagnoseResponse = {
   reportId: string;
   source: "mock" | "live";
+  metadata: DiagnoseMetadata;
   generatedAt: string;
   productName: string;
   productUrl?: string;

@@ -1,6 +1,6 @@
 const stages = [
   "Validating product context",
-  "Hydrating mock provider outputs",
+  "Collecting provider outputs",
   "Rendering score breakdown and raw responses",
 ];
 
@@ -13,11 +13,11 @@ export function LoadingStatePlaceholder() {
             Loading State
           </p>
           <h3 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
-            Building the mock report
+            Building the diagnostic report
           </h3>
           <p className="mt-3 text-sm leading-7 text-slate-600">
-            Provider calls are still deferred, but the dashboard is now wired to
-            a realistic report payload so the experience feels complete.
+            The app is validating inputs, gathering product context, and
+            preparing the scored dashboard response.
           </p>
           <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-slate-100">
             <div className="h-full w-2/3 animate-pulse rounded-full bg-[var(--accent)]" />
