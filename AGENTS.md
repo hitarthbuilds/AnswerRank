@@ -4,7 +4,7 @@ You are building AnswerRank AI for the Pixii.ai Founding Engineer take-home.
 
 Before coding, read:
 
-- docs/AnswerRankAI_PRD_SRS_v2.md
+- docs/AnswerRankAI_PRD_SRS_v2.docx
 
 Use the document as the product and engineering source of truth.
 
