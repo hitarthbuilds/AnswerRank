@@ -16,11 +16,28 @@ type ScoreCardProps = {
   report: DiagnoseResponse;
 };
 
+function getScoreSummary(overallScore: number, mentionedCount: number) {
+  if (mentionedCount === 0) {
+    return "The product was not detected in the sampled AI answers. Improve product naming, positioning, and query alignment.";
+  }
+
+  if (overallScore >= 85) {
+    return "Excellent AI visibility. The product is consistently surfaced across answer engines and ranks ahead of most competitors.";
+  }
+
+  if (overallScore >= 60) {
+    return "Strong relevance, but the product still has room to improve ranking depth, trust signals, and copy clarity.";
+  }
+
+  return "Limited AI visibility. The product is either missing from key answer engines or being outranked by clearer competitor listings.";
+}
+
 export function ScoreCard({ report }: ScoreCardProps) {
   const mentionedCount = report.modelResults.filter((result) => result.mentioned).length;
   const successfulCount = report.modelResults.filter(
     (result) => result.status === "success",
   ).length;
+  const scoreSummary = getScoreSummary(report.overallScore, mentionedCount);
 
   return (
     <section className="rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-sm">
@@ -49,8 +66,7 @@ export function ScoreCard({ report }: ScoreCardProps) {
           {mentionedCount} of {successfulCount} providers mentioned the product
         </p>
         <p className="mt-1 text-sm leading-6 text-slate-500">
-          Strong relevance, but the product still trails premium competitors on
-          ranking depth and copy clarity.
+          {scoreSummary}
         </p>
       </div>
       <div className="mt-6 space-y-4">

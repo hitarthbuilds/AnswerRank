@@ -44,6 +44,14 @@ export type MentionedProduct = {
   isUserProduct: boolean;
 };
 
+export type ParsedMentionResult = {
+  mentionedProducts: MentionedProduct[];
+  userProductMentioned: boolean;
+  userProductRank: number | null;
+  sentiment: Sentiment;
+  confidence: number;
+};
+
 export type ModelResult = {
   provider: ProviderId;
   status: ProviderStatus;
@@ -61,6 +69,7 @@ export type CompetitorScore = {
   averageRank: number | null;
   visibilityScore: number;
   winReason: string;
+  reasons: string[];
 };
 
 export type Recommendation = {

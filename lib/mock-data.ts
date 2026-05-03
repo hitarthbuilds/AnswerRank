@@ -1,11 +1,14 @@
+import { buildCompetitorLeaderboard } from "@/lib/leaderboard";
+import { parseProviderResponse } from "@/lib/parser";
+import { calculateOverallScore, calculateScoreBreakdown } from "@/lib/scoring";
 import { SAMPLE_DIAGNOSTIC_VALUES } from "@/lib/sample-input";
 import type {
-  CompetitorScore,
   DiagnoseRequest,
   DiagnoseResponse,
   DiagnosticFormValues,
   FAQItem,
   ModelResult,
+  ProviderId,
   RawModelResponse,
 } from "@/lib/types";
 
@@ -30,6 +33,15 @@ function withFallback(value: string | undefined, fallback: string) {
 
 function dedupe(values: string[]) {
   return Array.from(new Set(values));
+}
+
+function normalizeEntityName(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function normalizeCompetitorsInput(
@@ -58,41 +70,12 @@ function ensureCompetitors(input?: DiagnoseRequest["competitors"]) {
   );
 }
 
-function createLeaderboard(competitors: string[]): CompetitorScore[] {
-  return [
-    {
-      name: competitors[0],
-      mentions: 3,
-      averageRank: 1.3,
-      visibilityScore: 74,
-      winReason:
-        "Leads with premium trust signals and cleaner dosage communication.",
-    },
-    {
-      name: competitors[1],
-      mentions: 3,
-      averageRank: 2,
-      visibilityScore: 68,
-      winReason:
-        "Shows strong ingredient quality and senior-safe positioning in copy.",
-    },
-    {
-      name: competitors[2],
-      mentions: 2,
-      averageRank: 3.5,
-      visibilityScore: 48,
-      winReason:
-        "Wins on familiarity and simpler comparison language for shoppers.",
-    },
-    {
-      name: competitors[3],
-      mentions: 1,
-      averageRank: 5,
-      visibilityScore: 24,
-      winReason:
-        "Appears as a mainstream fallback because the brand is widely recognized.",
-    },
-  ];
+function excludeSubmittedProduct(productName: string, competitors: string[]) {
+  const normalizedProductName = normalizeEntityName(productName);
+  return competitors.filter(
+    (competitor) =>
+      normalizeEntityName(competitor) !== normalizedProductName,
+  );
 }
 
 function createFaqItems(productName: string): FAQItem[] {
@@ -120,153 +103,105 @@ function createFaqItems(productName: string): FAQItem[] {
   ];
 }
 
-function createRawResponses(
-  productName: string,
+function createSeededRawResponses(
   targetQuery: string,
-  competitors: string[],
 ): RawModelResponse[] {
   return [
     {
       provider: "openai",
       query: targetQuery,
       response:
-        `For seniors looking for a magnesium supplement, I would start with ${competitors[0]} and ${competitors[1]} because both explain magnesium glycinate quality, serving clarity, and testing standards well. ${competitors[2]} is another common recommendation when the goal is gentle daily support. I also see ${competitors[3]} as a more mainstream option, but premium brands usually offer stronger trust cues. In this category, products that clearly state elemental magnesium, third-party testing, and senior-friendly use cases tend to stand out the most.`,
+        "For seniors looking for a magnesium supplement, I would start with Thorne and Pure Encapsulations because both explain magnesium glycinate quality, serving clarity, and testing standards well. Doctor’s Best is another common recommendation when the goal is gentle daily support. I also see Nature Made as a more mainstream option, but premium brands usually offer stronger trust cues. In this category, products that clearly state elemental magnesium, third-party testing, and senior-friendly use cases tend to stand out the most.",
     },
     {
       provider: "gemini",
       query: targetQuery,
       response:
-        `If the goal is the best magnesium supplement for seniors, I would usually rank ${competitors[0]} first, followed by ${competitors[1]} and ${competitors[2]}. ${productName} could fit for sleep and relaxation support, but it feels less senior-specific than the leading listings. The product mentions useful benefits, yet it would be stronger with clearer dosage detail, proof of third-party testing, and a short FAQ that answers older-adult concerns. ${competitors[3]} is recognizable, but I would still favor more detailed listings for this query.`,
+        "If the goal is the best magnesium supplement for seniors, I would usually rank Thorne first, followed by Pure Encapsulations and Doctor’s Best. NutraCalm Magnesium Glycinate Plus could fit for sleep and relaxation support, but it feels less senior-specific than the leading listings. The product mentions useful benefits, yet it would be stronger with clearer dosage detail, proof of third-party testing, and a short FAQ that answers older-adult concerns. Nature Made is recognizable, but I would still favor more detailed listings for this query.",
     },
     {
       provider: "anthropic",
       query: targetQuery,
       response:
-        `For older adults, I would prioritize magnesium glycinate products that are gentle on digestion and transparent about serving strength. ${competitors[0]} and ${competitors[1]} feel strongest because their positioning is clearer and they surface trust signals immediately. ${productName} is relevant for sleep, calm, and digestion support, so I would place it in the next tier, but the listing would benefit from more explicit senior-oriented language, dosage clarity, and comparison framing. ${competitors[2]} remains competitive because its messaging is easier to scan quickly.`,
+        "For older adults, I would prioritize magnesium glycinate products that are gentle on digestion and transparent about serving strength. Thorne and Pure Encapsulations feel strongest because their positioning is clearer and they surface trust signals immediately. NutraCalm Magnesium Glycinate Plus is relevant for sleep, calm, and digestion support, so I would place it in the next tier, but the listing would benefit from more explicit senior-oriented language, dosage clarity, and comparison framing. Doctor’s Best remains competitive because its messaging is easier to scan quickly.",
     },
   ];
 }
 
-function createModelResults(
+function providerLabel(provider: ProviderId) {
+  if (provider === "openai") return "OpenAI";
+  if (provider === "gemini") return "Gemini";
+  return "Claude";
+}
+
+function buildModelResultSummary(
+  provider: ProviderId,
+  productName: string,
+  mentioned: boolean,
+  rank: number | null,
+  mentionedProducts: ModelResult["mentionedProducts"],
+) {
+  const competitorNames = mentionedProducts
+    .filter((product) => !product.isUserProduct)
+    .slice(0, 3)
+    .map((product) => product.name);
+
+  if (!mentioned) {
+    return `${providerLabel(provider)} did not mention ${productName} and instead surfaced ${competitorNames.join(", ")}.`;
+  }
+
+  if (competitorNames.length) {
+    return `${providerLabel(provider)} mentioned ${productName} at rank #${rank} behind ${competitorNames.join(", ")}.`;
+  }
+
+  return `${providerLabel(provider)} mentioned ${productName} at rank #${rank}.`;
+}
+
+function buildModelResults(
   productName: string,
   competitors: string[],
+  rawResponses: RawModelResponse[],
 ): ModelResult[] {
+  return rawResponses.map((rawResponse) => {
+    const parsed = parseProviderResponse({
+      productName,
+      competitors,
+      rawResponse: rawResponse.response,
+    });
+
+    return {
+      provider: rawResponse.provider,
+      status: "success",
+      mentioned: parsed.userProductMentioned,
+      rank: parsed.userProductRank,
+      sentiment: parsed.sentiment,
+      confidence: parsed.confidence,
+      summary: buildModelResultSummary(
+        rawResponse.provider,
+        productName,
+        parsed.userProductMentioned,
+        parsed.userProductRank,
+        parsed.mentionedProducts,
+      ),
+      mentionedProducts: parsed.mentionedProducts,
+    };
+  });
+}
+
+function buildInsights(
+  productDescription: string | undefined,
+  competitorName: string | undefined,
+) {
   return [
-    {
-      provider: "openai",
-      status: "success",
-      mentioned: false,
-      rank: null,
-      sentiment: "not_mentioned",
-      confidence: 0.97,
-      summary:
-        "OpenAI favored competitor listings with clearer dosage and testing language and did not mention the user product.",
-      mentionedProducts: [
-        {
-          name: competitors[0],
-          brand: competitors[0],
-          rank: 1,
-          reason: "Strong premium positioning and quality trust signals.",
-          isUserProduct: false,
-        },
-        {
-          name: competitors[1],
-          brand: competitors[1],
-          rank: 2,
-          reason: "Clear ingredient quality and senior-friendly positioning.",
-          isUserProduct: false,
-        },
-        {
-          name: competitors[2],
-          brand: competitors[2],
-          rank: 3,
-          reason: "Well-known option with recognizable comparison language.",
-          isUserProduct: false,
-        },
-      ],
-    },
-    {
-      provider: "gemini",
-      status: "success",
-      mentioned: true,
-      rank: 4,
-      sentiment: "positive",
-      confidence: 0.74,
-      summary:
-        "Gemini mentioned the product, but placed it behind stronger competitor listings because the copy feels broad instead of senior-specific.",
-      mentionedProducts: [
-        {
-          name: competitors[0],
-          brand: competitors[0],
-          rank: 1,
-          reason: "Most complete trust and dosage narrative for older adults.",
-          isUserProduct: false,
-        },
-        {
-          name: competitors[1],
-          brand: competitors[1],
-          rank: 2,
-          reason: "Consistent quality framing and better benefit clarity.",
-          isUserProduct: false,
-        },
-        {
-          name: competitors[2],
-          brand: competitors[2],
-          rank: 3,
-          reason: "Simple language that reads quickly in answer summaries.",
-          isUserProduct: false,
-        },
-        {
-          name: productName,
-          brand: productName,
-          rank: 4,
-          reason:
-            "Relevant benefits are present, but the listing lacks sharper senior positioning and FAQ support.",
-          isUserProduct: true,
-        },
-      ],
-    },
-    {
-      provider: "anthropic",
-      status: "success",
-      mentioned: true,
-      rank: 3,
-      sentiment: "positive",
-      confidence: 0.82,
-      summary:
-        "Claude found the product relevant and trustworthy, but still ranked two competitors above it because their benefits and comparisons were easier to parse.",
-      mentionedProducts: [
-        {
-          name: competitors[0],
-          brand: competitors[0],
-          rank: 1,
-          reason: "Immediate trust and premium-quality cues.",
-          isUserProduct: false,
-        },
-        {
-          name: competitors[1],
-          brand: competitors[1],
-          rank: 2,
-          reason: "Sharper senior-safe use-case positioning.",
-          isUserProduct: false,
-        },
-        {
-          name: productName,
-          brand: productName,
-          rank: 3,
-          reason:
-            "Good benefit relevance, but still missing stronger comparison and dosage framing.",
-          isUserProduct: true,
-        },
-        {
-          name: competitors[2],
-          brand: competitors[2],
-          rank: 4,
-          reason: "Still visible because the brand is easier to recognize.",
-          isUserProduct: false,
-        },
-      ],
-    },
+    competitorName
+      ? `${competitorName} appears more consistently because the seeded provider responses reward clearer trust and dosage framing.`
+      : "The seeded provider responses reward clearer trust and dosage framing than the current listing copy.",
+    "Senior-focused messaging is still too soft, so age-specific positioning is not surfacing strongly enough.",
+    productDescription?.toLowerCase().includes("third-party")
+      ? "Third-party testing exists in the description, but it is not elevated clearly enough for model summaries."
+      : "Testing and verification language should be made more explicit so answer engines can surface it faster.",
+    "FAQ coverage is thin around tolerance, serving size, and who the product is best for.",
+    "Comparison-style copy is easier for answer engines to summarize than broad benefit language alone.",
   ];
 }
 
@@ -299,11 +234,33 @@ export function formValuesToDiagnoseRequest(
 export function createMockDiagnoseResponse(
   request: DiagnoseRequest = SAMPLE_DIAGNOSE_REQUEST,
 ): DiagnoseResponse {
-  const productName = withFallback(request.productName, SAMPLE_DIAGNOSE_REQUEST.productName);
-  const targetQuery = withFallback(request.targetQuery, SAMPLE_DIAGNOSE_REQUEST.targetQuery);
+  const productName = withFallback(
+    request.productName,
+    SAMPLE_DIAGNOSE_REQUEST.productName,
+  );
+  const targetQuery = withFallback(
+    request.targetQuery,
+    SAMPLE_DIAGNOSE_REQUEST.targetQuery,
+  );
   const productDescription =
     request.productDescription || SAMPLE_DIAGNOSE_REQUEST.productDescription;
-  const competitors = ensureCompetitors(request.competitors);
+  const competitors = excludeSubmittedProduct(
+    productName,
+    ensureCompetitors(request.competitors),
+  );
+  const rawResponses = createSeededRawResponses(targetQuery);
+  const modelResults = buildModelResults(productName, competitors, rawResponses);
+  const competitorLeaderboard = buildCompetitorLeaderboard({
+    competitors,
+    modelResults,
+  });
+  const scoreBreakdown = calculateScoreBreakdown({
+    modelResults,
+    competitorLeaderboard,
+    productName,
+    productDescription,
+    targetQuery,
+  });
 
   return {
     reportId: `mock-${slugify(productName) || "answerrank-report"}`,
@@ -315,23 +272,11 @@ export function createMockDiagnoseResponse(
     targetQuery,
     audience: request.audience || SAMPLE_DIAGNOSE_REQUEST.audience,
     region: request.region || SAMPLE_DIAGNOSE_REQUEST.region,
-    overallScore: 62,
-    scoreBreakdown: {
-      mentionFrequency: 20,
-      rankPosition: 14,
-      sentimentConfidence: 11,
-      competitorGap: 8,
-      queryRelevance: 9,
-    },
-    modelResults: createModelResults(productName, competitors),
-    competitorLeaderboard: createLeaderboard(competitors),
-    insights: [
-      "Senior-focused messaging is too soft, so stronger age-specific positioning wins more often.",
-      "Third-party testing is present in the description but not surfaced early enough for AI summaries.",
-      "Dosage clarity is missing from the strongest moments in the copy, which weakens trust for comparison queries.",
-      "FAQ coverage is thin, leaving gaps around digestion tolerance, serving size, and who the product is for.",
-      "Competitors use simpler comparison content, making their listings easier for models to summarize confidently.",
-    ],
+    overallScore: calculateOverallScore(scoreBreakdown),
+    scoreBreakdown,
+    modelResults,
+    competitorLeaderboard,
+    insights: buildInsights(productDescription, competitorLeaderboard[0]?.name),
     recommendations: [
       {
         category: "title",
@@ -377,7 +322,7 @@ export function createMockDiagnoseResponse(
       },
     ],
     faqItems: createFaqItems(productName),
-    rawResponses: createRawResponses(productName, targetQuery, competitors),
+    rawResponses,
     errors: [],
   };
 }
