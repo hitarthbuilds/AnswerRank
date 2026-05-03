@@ -1,7 +1,7 @@
 const stages = [
   "Validating product context",
-  "Preparing answer engine workspace",
-  "Staging report dashboard",
+  "Hydrating mock provider outputs",
+  "Rendering score breakdown and raw responses",
 ];
 
 export function LoadingStatePlaceholder() {
@@ -13,11 +13,11 @@ export function LoadingStatePlaceholder() {
             Loading State
           </p>
           <h3 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
-            Building the first report shell
+            Building the mock report
           </h3>
           <p className="mt-3 text-sm leading-7 text-slate-600">
-            Provider calls are not live yet, but the UI already reserves space
-            for the staged run experience.
+            Provider calls are still deferred, but the dashboard is now wired to
+            a realistic report payload so the experience feels complete.
           </p>
           <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-slate-100">
             <div className="h-full w-2/3 animate-pulse rounded-full bg-[var(--accent)]" />
