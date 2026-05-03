@@ -16,6 +16,7 @@ const regions = [
 type DiagnosticFormProps = {
   values: DiagnosticFormValues;
   isLoading: boolean;
+  errorMessage: string | null;
   onLoadSample: () => void;
   onRunDiagnostic: () => void;
   onFieldChange: <K extends keyof DiagnosticFormValues>(
@@ -27,6 +28,7 @@ type DiagnosticFormProps = {
 export function DiagnosticForm({
   values,
   isLoading,
+  errorMessage,
   onLoadSample,
   onRunDiagnostic,
   onFieldChange,
@@ -50,11 +52,19 @@ export function DiagnosticForm({
           <button
             type="button"
             onClick={onLoadSample}
-            className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+            disabled={isLoading}
+            className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
           >
             Load Sample
           </button>
         </div>
+
+        {errorMessage ? (
+          <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-700">
+            <p className="font-semibold text-rose-800">Diagnostic request failed</p>
+            <p className="mt-1 leading-6">{errorMessage}</p>
+          </div>
+        ) : null}
 
         <form
           onSubmit={(event) => {
@@ -70,6 +80,7 @@ export function DiagnosticForm({
             hint="Brand and product title used for matching and reporting."
           >
             <input
+              name="productName"
               className={inputClassName}
               placeholder="NutraCalm Magnesium Glycinate Plus"
               value={values.productName}
@@ -85,6 +96,7 @@ export function DiagnosticForm({
             hint="Optional listing or PDP URL. Firecrawl is intentionally deferred."
           >
             <input
+              name="productUrl"
               className={inputClassName}
               placeholder="https://www.amazon.com/your-product"
               value={values.productUrl}
@@ -98,6 +110,7 @@ export function DiagnosticForm({
             hint="Use benefits, trust signals, certifications, and audience clues."
           >
             <textarea
+              name="productDescription"
               className={`${inputClassName} min-h-32 resize-y`}
               placeholder="Magnesium glycinate for adults and seniors. Supports sleep, relaxation, and digestion..."
               value={values.productDescription}
@@ -114,6 +127,7 @@ export function DiagnosticForm({
             hint="The main question a shopper would ask an AI assistant."
           >
             <input
+              name="targetQuery"
               className={inputClassName}
               placeholder="best magnesium supplement for seniors"
               value={values.targetQuery}
@@ -129,6 +143,7 @@ export function DiagnosticForm({
             hint="Comma-separated brands to compare later in the report."
           >
             <input
+              name="competitors"
               className={inputClassName}
               placeholder="Thorne, Pure Encapsulations, Doctor's Best"
               value={values.competitors}
@@ -144,6 +159,7 @@ export function DiagnosticForm({
             hint="Who is buying, and who are they buying for?"
           >
             <input
+              name="audience"
               className={inputClassName}
               placeholder="Seniors and adult children buying supplements for parents"
               value={values.audience}
@@ -157,6 +173,7 @@ export function DiagnosticForm({
             hint="Defaulted to the United States for the take-home demo."
           >
             <select
+              name="region"
               className={inputClassName}
               value={values.region}
               onChange={(event) => onFieldChange("region", event.target.value)}
@@ -171,8 +188,8 @@ export function DiagnosticForm({
 
           <div className="md:col-span-2 flex flex-col gap-3 border-t border-slate-200/80 pt-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-500">
-              Phase 1 keeps the run flow local. The button below only drives a
-              polished loading state and dashboard shell.
+              Phase 3 now posts the form to the mock `/api/diagnose` route and
+              renders the returned report.
             </p>
             <button
               type="submit"

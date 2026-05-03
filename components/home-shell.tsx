@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { DiagnosticForm } from "@/components/diagnostic-form";
 import { HeroSection } from "@/components/hero-section";
 import { LoadingStatePlaceholder } from "@/components/loading-state-placeholder";
 import { ReportDashboard } from "@/components/report-dashboard";
-import {
-  createMockDiagnoseResponse,
-  formValuesToDiagnoseRequest,
-} from "@/lib/mock-data";
+import { formValuesToDiagnoseRequest } from "@/lib/mock-data";
 import { SAMPLE_DIAGNOSTIC_VALUES } from "@/lib/sample-input";
-import type { DiagnoseResponse, DiagnosticFormValues } from "@/lib/types";
+import type {
+  DiagnoseRequest,
+  DiagnoseResponse,
+  DiagnosticFormValues,
+} from "@/lib/types";
 
 const INITIAL_VALUES: DiagnosticFormValues = {
   productName: "",
@@ -22,24 +23,36 @@ const INITIAL_VALUES: DiagnosticFormValues = {
   region: "United States",
 };
 
+function validateBeforeSubmit(values: DiagnosticFormValues) {
+  if (!values.productName.trim()) {
+    return "productName is required.";
+  }
+
+  if (!values.targetQuery.trim()) {
+    return "targetQuery is required.";
+  }
+
+  if (!values.productDescription.trim() && !values.productUrl.trim()) {
+    return "Provide at least one of productDescription or productUrl.";
+  }
+
+  return null;
+}
+
 export function HomeShell() {
   const [values, setValues] = useState<DiagnosticFormValues>(INITIAL_VALUES);
   const [isLoading, setIsLoading] = useState(false);
   const [report, setReport] = useState<DiagnoseResponse | null>(null);
-  const timeoutRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        window.clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const updateField = <K extends keyof DiagnosticFormValues>(
     field: K,
     value: DiagnosticFormValues[K],
   ) => {
+    if (errorMessage) {
+      setErrorMessage(null);
+    }
+
     setValues((current) => ({
       ...current,
       [field]: value,
@@ -47,27 +60,67 @@ export function HomeShell() {
   };
 
   const loadSample = () => {
-    if (timeoutRef.current) {
-      window.clearTimeout(timeoutRef.current);
-    }
-
     setValues(SAMPLE_DIAGNOSTIC_VALUES);
+    setErrorMessage(null);
     setReport(null);
     setIsLoading(false);
   };
 
-  const runDiagnostic = () => {
-    if (timeoutRef.current) {
-      window.clearTimeout(timeoutRef.current);
+  const runDiagnostic = async () => {
+    setReport(null);
+    setErrorMessage(null);
+    setIsLoading(true);
+
+    const validationError = validateBeforeSubmit(values);
+
+    if (validationError) {
+      setErrorMessage(validationError);
+      setIsLoading(false);
+      return;
     }
 
-    setIsLoading(true);
-    setReport(null);
+    try {
+      const requestBody: DiagnoseRequest = formValuesToDiagnoseRequest(values);
 
-    timeoutRef.current = window.setTimeout(() => {
+      const [response] = await Promise.all([
+        fetch("/api/diagnose", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        }),
+        new Promise((resolve) => window.setTimeout(resolve, 700)),
+      ]);
+
+      const payload = (await response.json().catch(() => null)) as
+        | DiagnoseResponse
+        | { error?: string }
+        | null;
+
+      if (!response.ok) {
+        const message =
+          payload &&
+          typeof payload === "object" &&
+          "error" in payload &&
+          typeof payload.error === "string"
+            ? payload.error
+            : "Unable to run the mock diagnostic right now.";
+
+        throw new Error(message);
+      }
+
+      setReport(payload as DiagnoseResponse);
+    } catch (error) {
+      setReport(null);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to run the mock diagnostic right now.",
+      );
+    } finally {
       setIsLoading(false);
-      setReport(createMockDiagnoseResponse(formValuesToDiagnoseRequest(values)));
-    }, 1400);
+    }
   };
 
   return (
@@ -80,6 +133,7 @@ export function HomeShell() {
         <DiagnosticForm
           values={values}
           isLoading={isLoading}
+          errorMessage={errorMessage}
           onFieldChange={updateField}
           onLoadSample={loadSample}
           onRunDiagnostic={runDiagnostic}
@@ -87,21 +141,21 @@ export function HomeShell() {
         <aside className="section-shell grid-noise grid rounded-[28px] p-6">
           <div className="rounded-3xl border border-white/70 bg-white/75 p-6 shadow-[0_12px_35px_rgba(15,23,42,0.08)]">
             <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-[var(--accent)]">
-              Phase 2 Scope
+              Phase 3 Scope
             </p>
             <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">
-              Mock report experience is now live
+              Mock API boundary is now live
             </h2>
             <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
-              The dashboard now renders real score sections, provider cards, and
-              believable raw responses without reaching any external APIs.
+              The form now posts to `/api/diagnose`, validates input server-side,
+              and renders the returned mock report through the same dashboard.
             </p>
             <div className="mt-6 space-y-3">
               {[
-                "Shared DiagnoseResponse types",
-                "Magnesium-sample mock scoring and insights",
-                "Real dashboard cards instead of placeholders",
-                "Expandable raw responses for demo credibility",
+                "POST /api/diagnose with validation",
+                "Competitor normalization for string or string[] input",
+                "Mock report adapted to submitted form values",
+                "Recoverable request errors in the UI",
               ].map((item) => (
                 <div
                   key={item}
@@ -118,9 +172,9 @@ export function HomeShell() {
       <section className="mt-6">
         {isLoading ? (
           <LoadingStatePlaceholder />
-        ) : (
+        ) : report && !errorMessage ? (
           <ReportDashboard report={report} />
-        )}
+        ) : null}
       </section>
     </main>
   );

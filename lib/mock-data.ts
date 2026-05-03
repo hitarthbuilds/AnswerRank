@@ -32,8 +32,30 @@ function dedupe(values: string[]) {
   return Array.from(new Set(values));
 }
 
-function ensureCompetitors(input?: string[]) {
-  return dedupe([...(input ?? []), ...SAMPLE_COMPETITORS]).slice(0, 4);
+export function normalizeCompetitorsInput(
+  input?: DiagnoseRequest["competitors"],
+) {
+  if (Array.isArray(input)) {
+    return dedupe(input.map((item) => item.trim()).filter(Boolean));
+  }
+
+  if (typeof input === "string") {
+    return dedupe(
+      input
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    );
+  }
+
+  return [];
+}
+
+function ensureCompetitors(input?: DiagnoseRequest["competitors"]) {
+  return dedupe([...normalizeCompetitorsInput(input), ...SAMPLE_COMPETITORS]).slice(
+    0,
+    4,
+  );
 }
 
 function createLeaderboard(competitors: string[]): CompetitorScore[] {
@@ -263,22 +285,14 @@ export const SAMPLE_DIAGNOSE_REQUEST: DiagnoseRequest = {
 export function formValuesToDiagnoseRequest(
   values: DiagnosticFormValues,
 ): DiagnoseRequest {
-  const competitors = values.competitors
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-
   return {
-    productName: withFallback(values.productName, SAMPLE_DIAGNOSE_REQUEST.productName),
+    productName: values.productName.trim(),
     productUrl: values.productUrl.trim() || undefined,
-    productDescription:
-      values.productDescription.trim() || SAMPLE_DIAGNOSE_REQUEST.productDescription,
-    targetQuery: withFallback(values.targetQuery, SAMPLE_DIAGNOSE_REQUEST.targetQuery),
-    competitors: competitors.length
-      ? competitors
-      : SAMPLE_DIAGNOSE_REQUEST.competitors,
-    audience: values.audience.trim() || SAMPLE_DIAGNOSE_REQUEST.audience,
-    region: values.region.trim() || SAMPLE_DIAGNOSE_REQUEST.region,
+    productDescription: values.productDescription.trim() || undefined,
+    targetQuery: values.targetQuery.trim(),
+    competitors: values.competitors.trim() || undefined,
+    audience: values.audience.trim() || undefined,
+    region: values.region.trim() || undefined,
   };
 }
 

@@ -23,7 +23,7 @@ export type DiagnoseRequest = {
   productUrl?: string;
   productDescription?: string;
   targetQuery: string;
-  competitors?: string[];
+  competitors?: string[] | string;
   audience?: string;
   region?: string;
 };
