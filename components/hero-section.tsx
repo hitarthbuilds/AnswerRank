@@ -1,7 +1,7 @@
 const metrics = [
-  { value: "3", label: "Answer engines planned" },
-  { value: "<3 min", label: "Target live demo" },
-  { value: "Mock-first", label: "Delivery strategy" },
+  { value: "Gemini live + adapters", label: "Answer engines" },
+  { value: "<3 min", label: "Demo length" },
+  { value: "Gemini + Firecrawl", label: "APIs / tools" },
 ];
 
 export function HeroSection() {
@@ -13,7 +13,7 @@ export function HeroSection() {
           <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2 shadow-sm">
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
             <span className="font-mono text-[11px] uppercase tracking-[0.3em] text-slate-600">
-              AnswerRank AI / Phase 1
+              AnswerRank AI / AEO Diagnostic
             </span>
           </div>
           <h1 className="mt-6 max-w-3xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
@@ -32,7 +32,7 @@ export function HeroSection() {
               Start a diagnostic
             </a>
             <div className="inline-flex items-center rounded-full border border-slate-200 bg-white/85 px-4 py-3 text-sm text-slate-600 shadow-sm">
-              Mock/demo mode comes first. Providers land next.
+              Live Gemini + Firecrawl demo with mock fallback.
             </div>
           </div>
         </div>

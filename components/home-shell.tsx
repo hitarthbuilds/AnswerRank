@@ -141,22 +141,22 @@ export function HomeShell() {
         <aside className="section-shell grid-noise grid rounded-[28px] p-6">
           <div className="rounded-3xl border border-white/70 bg-white/75 p-6 shadow-[0_12px_35px_rgba(15,23,42,0.08)]">
             <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-[var(--accent)]">
-              Phase 6 Scope
+              Live Demo Pipeline
             </p>
             <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">
-              Gemini live mode with Firecrawl context
+              Gemini answer engine + Firecrawl context
             </h2>
             <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
-              `/api/diagnose` now preserves stable mock mode, supports live
-              Gemini responses, and optionally enriches product URLs through
-              Firecrawl before scoring the report.
+              Submit a product, buyer-intent query, and competitors.
+              AnswerRank extracts product context, queries Gemini, parses brand
+              mentions, scores AI visibility, and generates listing fixes.
             </p>
             <div className="mt-6 space-y-3">
               {[
-                "Gemini live provider with non-streaming responses",
-                "Optional Firecrawl product-page context extraction",
-                "Deterministic parser, scoring, and leaderboard rendering",
-                "Graceful mock fallback when live providers fail",
+                "Gemini live answer-engine response",
+                "Firecrawl product-page context",
+                "Deterministic parser and AEO scoring",
+                "Fix It Engine for listing rewrites",
               ].map((item) => (
                 <div
                   key={item}

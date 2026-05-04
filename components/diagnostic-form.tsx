@@ -189,8 +189,8 @@ export function DiagnosticForm({
 
           <div className="md:col-span-2 flex flex-col gap-3 border-t border-slate-200/80 pt-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-500">
-              The form posts to `/api/diagnose`, supports live Gemini mode, and
-              still falls back cleanly to the stable demo report.
+              Runs a live diagnostic when Gemini is configured, with stable
+              mock fallback for reproducible demos.
             </p>
             <button
               type="submit"
