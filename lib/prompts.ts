@@ -34,6 +34,9 @@ ${urlContext}
 
   return `You are an AI shopping assistant answering a buyer-intent product recommendation query.
 
+The product below is being evaluated for visibility in the answer. Use its context if relevant, but do not force it into the recommendation.
+Recommend the analyzed product only if it naturally fits the buyer query. If stronger competitors fit better, say so and compare naturally against known competitors.
+
 Buyer query:
 "${input.targetQuery}"
 

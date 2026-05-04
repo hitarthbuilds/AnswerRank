@@ -104,7 +104,12 @@ export type ProviderError = {
 
 export type DiagnoseMetadata = {
   mode: "mock" | "live";
-  source: "mock" | "gemini-live" | "mock-fallback";
+  source:
+    | "mock"
+    | "gemini-live"
+    | "full-live"
+    | "live-partial"
+    | "mock-fallback";
   demoMode: boolean;
   providersConfigured: string[];
   providersUsed: string[];

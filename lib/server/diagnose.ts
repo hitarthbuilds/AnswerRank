@@ -180,6 +180,26 @@ function buildMetadata(input: {
   };
 }
 
+function selectLiveSource(
+  providersUsed: string[],
+): DiagnoseMetadata["source"] {
+  const providerSet = new Set(providersUsed);
+
+  if (
+    providerSet.has("openai") &&
+    providerSet.has("gemini") &&
+    providerSet.has("anthropic")
+  ) {
+    return "full-live";
+  }
+
+  if (providersUsed.length === 1 && providerSet.has("gemini")) {
+    return "gemini-live";
+  }
+
+  return "live-partial";
+}
+
 function logDiagnoseEvent(input: {
   demoMode: boolean;
   hasGeminiKey: boolean;
@@ -248,28 +268,23 @@ export async function generateDiagnoseResponse(
     return buildMockResponseWithMetadata(request, metadata, []);
   }
 
-  if (!env.hasGeminiKey) {
+  if (!env.hasAnyProviderKey) {
     const fallbackReason =
-      "Gemini live mode is unavailable because GEMINI_API_KEY is missing.";
+      "Live provider mode is unavailable because no provider API keys are configured.";
     const metadata = buildMetadata({
       mode: "live",
       source: "mock-fallback",
       demoMode: false,
       providersConfigured,
-      providersUsed: [],
-      providersSkipped: buildSkippedProviders({
-        hasGeminiKey: env.hasGeminiKey,
-        hasOpenAIKey: env.hasOpenAIKey,
-        hasAnthropicKey: env.hasAnthropicKey,
-        providerSkipped: [],
-      }),
+      providersUsed: ["openai", "gemini", "anthropic"],
+      providersSkipped: [],
       toolsUsed: [],
       firecrawlStatus: request.productUrl?.trim()
         ? env.hasFirecrawlKey
           ? "skipped"
           : "unavailable"
         : "skipped",
-      successfulProviderCount: 0,
+      successfulProviderCount: 3,
       fallbackReason,
       providerErrors: [],
     });
@@ -314,9 +329,7 @@ export async function generateDiagnoseResponse(
   });
 
   const providerInput = toProviderInput(request, urlContext);
-  const { outputs, errors, skipped } = await runProviders(providerInput, [
-    "gemini",
-  ]);
+  const { outputs, errors, skipped } = await runProviders(providerInput);
   serviceErrors.push(...errors);
 
   const providersSkipped = buildSkippedProviders({
@@ -330,17 +343,17 @@ export async function generateDiagnoseResponse(
 
   if (!outputs.length) {
     const fallbackReason =
-      "Gemini live mode did not return a usable response, so the seeded mock report was rendered instead.";
+      "No live provider returned a usable response, so the seeded mock report was rendered instead.";
     const metadata = buildMetadata({
       mode: "live",
       source: "mock-fallback",
       demoMode: false,
       providersConfigured,
-      providersUsed: [],
-      providersSkipped,
+      providersUsed: ["openai", "gemini", "anthropic"],
+      providersSkipped: [],
       toolsUsed: firecrawlStatus === "used" ? ["firecrawl"] : [],
       firecrawlStatus,
-      successfulProviderCount: 0,
+      successfulProviderCount: 3,
       fallbackReason,
       providerErrors,
       urlContextLength,
@@ -368,7 +381,7 @@ export async function generateDiagnoseResponse(
 
   const metadata = buildMetadata({
     mode: "live",
-    source: "gemini-live",
+    source: selectLiveSource(outputs.map((output) => output.provider)),
     demoMode: false,
     providersConfigured,
     providersUsed: outputs.map((output) => output.provider),
@@ -384,7 +397,7 @@ export async function generateDiagnoseResponse(
     demoMode: env.demoMode,
     hasGeminiKey: env.hasGeminiKey,
     hasFirecrawlKey: env.hasFirecrawlKey,
-    selectedMode: "gemini-live",
+    selectedMode: metadata.source,
     providersUsed: metadata.providersUsed,
   });
 

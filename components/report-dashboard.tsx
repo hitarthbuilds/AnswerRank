@@ -88,13 +88,22 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
       ? "Mock mode"
       : report.metadata.source === "mock-fallback"
         ? "Mock fallback"
-        : "Gemini live";
+        : report.metadata.source === "full-live"
+          ? "Full live"
+          : report.metadata.source === "gemini-live"
+            ? "Gemini live"
+            : "Live partial";
 
   const providersUsedLabel = report.metadata.providersUsed.length
     ? report.metadata.providersUsed.map(formatServiceLabel).join(", ")
     : report.metadata.source === "mock"
       ? "Seeded OpenAI, Gemini, Claude mock responses"
       : "None";
+
+  const normalizedProvidersUsedLabel =
+    report.metadata.source === "mock" || report.metadata.source === "mock-fallback"
+      ? "Seeded OpenAI, Gemini, Claude mock responses"
+      : providersUsedLabel;
 
   const providersConfiguredLabel = report.metadata.providersConfigured.length
     ? report.metadata.providersConfigured.map(formatServiceLabel).join(", ")
@@ -121,7 +130,11 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
       ? "This report is rendered from stable seeded responses so the product story stays demoable with no external keys."
       : report.metadata.source === "mock-fallback"
         ? "Live mode was attempted, but the server returned a seeded fallback report instead."
-        : "This report was generated from live Gemini output and then scored by the deterministic parser, AEO engine, and leaderboard builder.";
+        : report.metadata.source === "full-live"
+          ? "This report was generated from live OpenAI, Gemini, and Claude-style provider output, then scored by the deterministic parser, AEO engine, and leaderboard builder."
+          : report.metadata.source === "gemini-live"
+            ? "This report was generated from live Gemini output and then scored by the deterministic parser, AEO engine, and leaderboard builder."
+            : "This report was generated from live multi-provider output and then scored by the deterministic parser, AEO engine, and leaderboard builder.";
 
   return (
     <section className="section-shell overflow-hidden rounded-[28px] p-6 sm:p-7">
@@ -147,7 +160,7 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
           <span>Mode: {report.metadata.mode}</span>
           <span>Demo mode: {report.metadata.demoMode ? "true" : "false"}</span>
           <span>Providers configured: {providersConfiguredLabel}</span>
-          <span>Providers used: {providersUsedLabel}</span>
+          <span>Providers used: {normalizedProvidersUsedLabel}</span>
           <span>Providers skipped: {providersSkippedLabel}</span>
           <span>
             Coverage: {report.metadata.successfulProviderCount}/

@@ -67,6 +67,20 @@ ANTHROPIC_API_KEY=
 
 Gemini is enough for live LLM mode. Firecrawl is optional, but when a product URL is provided and a Firecrawl key exists, the app will extract product-page context and add it to the Gemini prompt.
 
+## Enabling Full 3-Provider Live Mode
+
+Add valid provider keys:
+
+```bash
+NEXT_PUBLIC_DEMO_MODE=false
+GEMINI_API_KEY=your_key
+OPENAI_API_KEY=your_key
+ANTHROPIC_API_KEY=your_key
+FIRECRAWL_API_KEY=your_key
+```
+
+When valid OpenAI and Anthropic keys are added later, the app automatically expands from Gemini-only live mode to multi-provider live mode without further code changes.
+
 ## Behavior Notes
 
 - No auth
