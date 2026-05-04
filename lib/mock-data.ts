@@ -18,14 +18,25 @@ import type {
   ProviderError,
   ProviderId,
   RawModelResponse,
+  Recommendation,
 } from "@/lib/types";
 
-const SAMPLE_COMPETITORS = [
+const LEGACY_SAMPLE_COMPETITORS = [
   "Thorne",
   "Pure Encapsulations",
   "Doctor's Best",
   "Nature Made",
 ];
+
+const HK_VITALS_SAMPLE_COMPETITORS = [
+  "Tata 1mg Magnesium Glycinate",
+  "HealthyHey Magnesium Glycinate",
+  "Himalayan Organics Magnesium",
+  "Carbamide Forte Magnesium",
+  "Wellbeing Nutrition Magnesium",
+];
+
+type MockScenarioId = "legacy-magnesium" | "hk-vitals";
 
 function slugify(value: string) {
   return value
@@ -71,11 +82,49 @@ export function normalizeCompetitorsInput(
   return [];
 }
 
-function ensureCompetitors(input?: DiagnoseRequest["competitors"]) {
-  return dedupe([...normalizeCompetitorsInput(input), ...SAMPLE_COMPETITORS]).slice(
-    0,
-    4,
-  );
+function normalizeScenarioText(value: string | undefined) {
+  return normalizeEntityName(value ?? "");
+}
+
+function selectMockScenario(
+  request: Partial<DiagnoseRequest>,
+): MockScenarioId {
+  const productName = normalizeScenarioText(request.productName);
+  const targetQuery = normalizeScenarioText(request.targetQuery);
+  const region = normalizeScenarioText(request.region);
+
+  if (productName.includes("hk vitals")) {
+    return "hk-vitals";
+  }
+
+  if (productName.includes("magnesium glycinate") && region.includes("india")) {
+    return "hk-vitals";
+  }
+
+  if (
+    targetQuery.includes("magnesium glycinate") &&
+    targetQuery.includes("india")
+  ) {
+    return "hk-vitals";
+  }
+
+  return "legacy-magnesium";
+}
+
+function getScenarioDefaultCompetitors(
+  scenarioId: MockScenarioId,
+) {
+  return scenarioId === "hk-vitals"
+    ? HK_VITALS_SAMPLE_COMPETITORS
+    : LEGACY_SAMPLE_COMPETITORS;
+}
+
+function ensureCompetitors(
+  input: DiagnoseRequest["competitors"] | undefined,
+  fallbackCompetitors: string[],
+) {
+  const normalized = normalizeCompetitorsInput(input);
+  return normalized.length ? dedupe(normalized) : fallbackCompetitors;
 }
 
 function excludeSubmittedProduct(productName: string, competitors: string[]) {
@@ -86,7 +135,7 @@ function excludeSubmittedProduct(productName: string, competitors: string[]) {
   );
 }
 
-function createFaqItems(productName: string): FAQItem[] {
+function createLegacyFaqItems(productName: string): FAQItem[] {
   return [
     {
       question: "How much elemental magnesium does one serving provide?",
@@ -111,9 +160,72 @@ function createFaqItems(productName: string): FAQItem[] {
   ];
 }
 
+function createHkVitalsFaqItems(productName: string): FAQItem[] {
+  return [
+    {
+      question: "How much elemental magnesium does one serving provide?",
+      answer:
+        `${productName} should state elemental magnesium per serving clearly so buyers in India can compare it against Tata 1mg, HealthyHey, and Carbamide Forte without guessing.`,
+    },
+    {
+      question: "Is magnesium glycinate a better fit for sleep and muscle recovery?",
+      answer:
+        "Yes, the listing should explicitly connect glycinate to sleep quality, muscle relaxation, and recovery support instead of leaving those benefits implied.",
+    },
+    {
+      question: "Is this formula gentle on digestion?",
+      answer:
+        "Bring digestion tolerance higher in the copy and explain why glycinate is positioned as a gentler choice than broader magnesium blends or oxide-heavy formulas.",
+    },
+    {
+      question: "How is product quality verified?",
+      answer:
+        "Surface testing, manufacturing quality, and formulation trust signals earlier so answer engines can summarize the product more confidently.",
+    },
+  ];
+}
+
+function createFaqItems(
+  productName: string,
+  scenarioId: MockScenarioId,
+): FAQItem[] {
+  return scenarioId === "hk-vitals"
+    ? createHkVitalsFaqItems(productName)
+    : createLegacyFaqItems(productName);
+}
+
 export function createSeededRawResponses(
   targetQuery: string,
+  request?: Partial<DiagnoseRequest>,
 ): RawModelResponse[] {
+  const scenarioId = selectMockScenario({
+    ...request,
+    targetQuery,
+  });
+
+  if (scenarioId === "hk-vitals") {
+    return [
+      {
+        provider: "openai",
+        query: targetQuery,
+        response:
+          "For shoppers in India looking for magnesium glycinate for sleep and muscle recovery, I would usually start with Tata 1mg Magnesium Glycinate because the dosage framing is easier to understand quickly. Himalayan Organics Magnesium is another recognizable India-available listing in the category, and Wellbeing Nutrition Magnesium is often surfaced when brands make daily-use positioning easier to scan. In this segment, products perform better when they state elemental magnesium, serving size, digestion tolerance, and quality cues more clearly than broad wellness claims alone.",
+      },
+      {
+        provider: "gemini",
+        query: targetQuery,
+        response:
+          "If the goal is the best magnesium glycinate supplement for sleep and muscle recovery in India, I would put HK Vitals 100% Magnesium Glycinate near the top because it is clearly positioned around sleep, relaxation, and recovery support. HealthyHey Magnesium Glycinate is another strong option, and Carbamide Forte Magnesium also shows up often for muscle support. Wellbeing Nutrition Magnesium is recognizable, but HK Vitals feels more directly aligned to this specific query when the buyer wants glycinate rather than a broader magnesium blend. The listing would still be stronger with exact elemental magnesium, serving-size clarity, and more visible trust signals.",
+      },
+      {
+        provider: "anthropic",
+        query: targetQuery,
+        response:
+          "For sleep support and post-workout recovery in India, I would first look at Tata 1mg Magnesium Glycinate and HealthyHey Magnesium Glycinate because their dosage and trust framing are easier to scan quickly. Carbamide Forte Magnesium also remains competitive for broader recovery messaging. HK Vitals 100% Magnesium Glycinate is relevant and uses the right glycinate positioning, but I would place it a bit lower until the listing makes serving strength, quality proof, and digestion tolerance more explicit.",
+      },
+    ];
+  }
+
   return [
     {
       provider: "openai",
@@ -155,10 +267,18 @@ function buildModelResultSummary(
     .map((product) => product.name);
 
   if (!mentioned) {
+    if (!competitorNames.length) {
+      return `${providerLabel(provider)} did not mention ${productName}. Provider did not surface clear competing brands in this response.`;
+    }
+
     return `${providerLabel(provider)} did not mention ${productName} and instead surfaced ${competitorNames.join(", ")}.`;
   }
 
   if (competitorNames.length) {
+    if (rank === 1) {
+      return `${providerLabel(provider)} mentioned ${productName} at rank #1 ahead of ${competitorNames.join(", ")}.`;
+    }
+
     return `${providerLabel(provider)} mentioned ${productName} at rank #${rank} behind ${competitorNames.join(", ")}.`;
   }
 
@@ -200,7 +320,21 @@ function buildInsights(
   productDescription: string | undefined,
   competitorName: string | undefined,
   source: DiagnoseResponse["source"],
+  scenarioId: MockScenarioId,
 ) {
+  if (scenarioId === "hk-vitals") {
+    const leadCompetitor =
+      competitorName || "HealthyHey Magnesium Glycinate";
+
+    return [
+      `HK Vitals appears in the sampled AI answers, but ${leadCompetitor} still outranks it when dosage and trust framing are easier to scan.`,
+      'Make "magnesium glycinate for sleep and muscle recovery in India" explicit much earlier in the title and top bullets.',
+      "Surface elemental magnesium amount, serving size, quality proof, and digestion tolerance earlier in the listing.",
+      "India-specific comparison copy would help answer engines choose HK Vitals over Tata 1mg, HealthyHey, and Carbamide Forte.",
+      "FAQ coverage should answer who it is best for, how recovery support differs from general wellness magnesium, and why glycinate is positioned as a gentler form.",
+    ];
+  }
+
   const providerContext =
     source === "mock" ? "seeded provider responses" : "live provider output";
   const providerVerb = source === "mock" ? "reward" : "rewards";
@@ -218,9 +352,107 @@ function buildInsights(
   ];
 }
 
+function buildRecommendations(
+  productName: string,
+  targetQuery: string,
+  scenarioId: MockScenarioId,
+): Recommendation[] {
+  if (scenarioId === "hk-vitals") {
+    return [
+      {
+        category: "title",
+        priority: "high",
+        title: 'Lead with "Magnesium Glycinate for Sleep & Muscle Recovery"',
+        description:
+          `Bring the exact buyer intent from "${targetQuery}" into the front of the title so AI answers can match HK Vitals to the query faster.`,
+      },
+      {
+        category: "bullets",
+        priority: "high",
+        title: "Add exact elemental magnesium and serving-size detail",
+        description:
+          "State how much elemental magnesium one serving provides, how many servings are included, and what daily use looks like.",
+      },
+      {
+        category: "trust-signals",
+        priority: "high",
+        title: "Promote testing and manufacturing trust earlier",
+        description:
+          "Bring testing, certifications, quality standards, and any pharmacist or doctor-facing trust cues above the fold if they are available.",
+      },
+      {
+        category: "faq",
+        priority: "medium",
+        title: "Add FAQ copy for sleep, recovery, and digestion tolerance",
+        description:
+          "Answer whether the formula supports restful sleep, muscle relaxation, gentle digestion, and who it is best suited for.",
+      },
+      {
+        category: "positioning",
+        priority: "medium",
+        title: "Clarify the India-specific use case",
+        description:
+          "Position the product explicitly for Indian adults looking for better sleep, muscle recovery, and stress support with a glycinate form.",
+      },
+      {
+        category: "comparison",
+        priority: "medium",
+        title: "Use comparison copy against generic magnesium forms",
+        description:
+          `${productName} should explain why glycinate is a better fit for sleep and recovery than harsher or more generic magnesium oxide-style options.`,
+      },
+    ];
+  }
+
+  return [
+    {
+      category: "title",
+      priority: "high",
+      title: "Lead the title with the senior use case",
+      description:
+        `Move ${productName} closer to the target query by adding "for seniors" or an equivalent age-specific qualifier near the front of the title.`,
+    },
+    {
+      category: "bullets",
+      priority: "high",
+      title: "Rewrite bullets around dosage and tolerance",
+      description:
+        "Make each bullet do one job: serving strength, digestion friendliness, sleep support, testing, and who the formula is best for.",
+    },
+    {
+      category: "faq",
+      priority: "high",
+      title: "Add an AI-readable FAQ block",
+      description:
+        "Answer the exact objections buyers ask AI tools: how much magnesium per serving, who it suits, and why glycinate is gentle.",
+    },
+    {
+      category: "trust-signals",
+      priority: "medium",
+      title: "Promote proof points earlier",
+      description:
+        "Bring third-party testing, GMP standards, and vegan manufacturing higher into the visible copy instead of leaving them buried in the description.",
+    },
+    {
+      category: "positioning",
+      priority: "medium",
+      title: "Clarify who the product is for",
+      description:
+        "State the fit for seniors and adult children buying for parents so AI engines can match the product to an explicit audience.",
+    },
+    {
+      category: "comparison",
+      priority: "medium",
+      title: "Use clean comparison language",
+      description:
+        `Explain why ${productName} is a better fit for sleep, calm, and digestion than more generic magnesium options without sounding spammy.`,
+    },
+  ];
+}
+
 export const SAMPLE_DIAGNOSE_REQUEST: DiagnoseRequest = {
   productName: SAMPLE_DIAGNOSTIC_VALUES.productName,
-  productUrl: undefined,
+  productUrl: SAMPLE_DIAGNOSTIC_VALUES.productUrl || undefined,
   productDescription: SAMPLE_DIAGNOSTIC_VALUES.productDescription,
   targetQuery: SAMPLE_DIAGNOSTIC_VALUES.targetQuery,
   competitors: SAMPLE_DIAGNOSTIC_VALUES.competitors
@@ -251,6 +483,7 @@ export function createMockDiagnoseResponse(
     request,
     rawResponses: createSeededRawResponses(
       withFallback(request.targetQuery, SAMPLE_DIAGNOSE_REQUEST.targetQuery),
+      request,
     ),
     source: "mock",
     metadata: {
@@ -298,9 +531,21 @@ export function buildDiagnoseResponse({
   );
   const productDescription =
     request.productDescription || SAMPLE_DIAGNOSE_REQUEST.productDescription;
+  const region = request.region || SAMPLE_DIAGNOSE_REQUEST.region;
+  const audience = request.audience || SAMPLE_DIAGNOSE_REQUEST.audience;
+  const scenarioId = selectMockScenario({
+    productName,
+    productDescription,
+    targetQuery,
+    region,
+    audience,
+  });
   const competitors = excludeSubmittedProduct(
     productName,
-    ensureCompetitors(request.competitors),
+    ensureCompetitors(
+      request.competitors,
+      getScenarioDefaultCompetitors(scenarioId),
+    ),
   );
   const modelResults = buildModelResults(productName, competitors, rawResponses);
   const competitorLeaderboard = buildCompetitorLeaderboard({
@@ -368,52 +613,14 @@ export function buildDiagnoseResponse({
       productDescription,
       competitorLeaderboard[0]?.name,
       source,
+      scenarioId,
     ),
-    recommendations: [
-      {
-        category: "title",
-        priority: "high",
-        title: "Lead the title with the senior use case",
-        description:
-          `Move ${productName} closer to the target query by adding "for seniors" or an equivalent age-specific qualifier near the front of the title.`,
-      },
-      {
-        category: "bullets",
-        priority: "high",
-        title: "Rewrite bullets around dosage and tolerance",
-        description:
-          "Make each bullet do one job: serving strength, digestion friendliness, sleep support, testing, and who the formula is best for.",
-      },
-      {
-        category: "faq",
-        priority: "high",
-        title: "Add an AI-readable FAQ block",
-        description:
-          "Answer the exact objections buyers ask AI tools: how much magnesium per serving, who it suits, and why glycinate is gentle.",
-      },
-      {
-        category: "trust-signals",
-        priority: "medium",
-        title: "Promote proof points earlier",
-        description:
-          "Bring third-party testing, GMP standards, and vegan manufacturing higher into the visible copy instead of leaving them buried in the description.",
-      },
-      {
-        category: "positioning",
-        priority: "medium",
-        title: "Clarify who the product is for",
-        description:
-          "State the fit for seniors and adult children buying for parents so AI engines can match the product to an explicit audience.",
-      },
-      {
-        category: "comparison",
-        priority: "medium",
-        title: "Use clean comparison language",
-        description:
-          `Explain why ${productName} is a better fit for sleep, calm, and digestion than more generic magnesium options without sounding spammy.`,
-      },
-    ],
-    faqItems: createFaqItems(productName),
+    recommendations: buildRecommendations(
+      productName,
+      targetQuery,
+      scenarioId,
+    ),
+    faqItems: createFaqItems(productName, scenarioId),
     rawResponses,
     errors,
   };

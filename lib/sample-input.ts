@@ -1,13 +1,16 @@
 import type { DiagnosticFormValues } from "@/lib/types";
 
 export const SAMPLE_DIAGNOSTIC_VALUES: DiagnosticFormValues = {
-  productName: "NutraCalm Magnesium Glycinate Plus",
-  productUrl: "",
+  productName: "HK Vitals 100% Magnesium Glycinate",
+  productUrl:
+    "https://www.hkvitals.com/sv/hk-vitals-100-magnesium-glycinate/SP-129393",
   productDescription:
-    "Magnesium glycinate for adults and seniors. Supports sleep, relaxation, and digestion. Third-party tested. Vegan. GMP.",
-  targetQuery: "best magnesium supplement for seniors",
+    "HK Vitals 100% Magnesium Glycinate is a chelated magnesium supplement designed to support restful sleep, muscle relaxation, recovery, stress support, and gentle digestion. It is positioned around high absorption magnesium glycinate compared to harsher forms like magnesium oxide.",
+  targetQuery:
+    "best magnesium glycinate supplement for sleep and muscle recovery in India",
   competitors:
-    "Thorne, Pure Encapsulations, Doctor's Best, Nature Made",
-  audience: "Seniors and adult children buying supplements for parents",
-  region: "United States",
+    "Tata 1mg Magnesium Glycinate, HealthyHey Magnesium Glycinate, Himalayan Organics Magnesium, Carbamide Forte Magnesium, Wellbeing Nutrition Magnesium",
+  audience:
+    "Indian adults looking for better sleep, muscle recovery, stress support, and gentle digestion",
+  region: "India",
 };

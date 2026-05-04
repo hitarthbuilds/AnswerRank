@@ -225,7 +225,7 @@ function buildMockResponseWithMetadata(
 ) {
   return buildDiagnoseResponse({
     request,
-    rawResponses: createSeededRawResponses(request.targetQuery),
+    rawResponses: createSeededRawResponses(request.targetQuery, request),
     source: "mock",
     metadata,
     errors,

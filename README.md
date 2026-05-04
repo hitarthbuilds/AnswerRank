@@ -45,6 +45,12 @@ Stable seeded OpenAI/Gemini/Claude-style responses.
 
 This is the safest path for reproducible demos, reviewer testing, and screenshot capture. It keeps report output stable even when no external keys are available.
 
+### Primary demo sample
+
+The default sample is now built around **HK Vitals 100% Magnesium Glycinate** for an India-specific sleep and muscle recovery query.
+
+The deployed demo runs stable mock mode for reproducible review, while the same app supports live Gemini + Firecrawl diagnostics when environment variables are configured.
+
 ### Live mode
 
 Gemini runs live.
