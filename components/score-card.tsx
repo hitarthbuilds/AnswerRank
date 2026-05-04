@@ -33,7 +33,25 @@ function getScoreSummary(overallScore: number, mentionedCount: number) {
 }
 
 function getCoverageLabel(successfulProviderCount: number) {
-  return `${successfulProviderCount} of 3 answer engines tested`;
+  return `${successfulProviderCount} of 3 planned answer engines tested`;
+}
+
+function getMentionedProvidersLabel(
+  report: DiagnoseResponse,
+  mentionedCount: number,
+  successfulCount: number,
+) {
+  if (report.metadata.coverageAdjusted && successfulCount === 1) {
+    return mentionedCount > 0
+      ? "Gemini mentioned the product in this live run"
+      : "Gemini did not mention the product in this live run";
+  }
+
+  if (report.metadata.coverageAdjusted && successfulCount === 2) {
+    return `${mentionedCount} active providers mentioned the product`;
+  }
+
+  return `${mentionedCount} of ${successfulCount} providers mentioned the product`;
 }
 
 function getCoverageNote(report: DiagnoseResponse) {
@@ -86,7 +104,7 @@ export function ScoreCard({ report }: ScoreCardProps) {
       </div>
       <div className="mt-5 rounded-3xl border border-slate-200/80 bg-slate-50/70 p-4">
         <p className="text-sm font-medium text-slate-800">
-          {mentionedCount} of {successfulCount} providers mentioned the product
+          {getMentionedProvidersLabel(report, mentionedCount, successfulCount)}
         </p>
         <p className="mt-1 text-xs font-medium uppercase tracking-[0.22em] text-slate-400">
           {getCoverageLabel(successfulCount)}
