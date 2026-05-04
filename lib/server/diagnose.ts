@@ -149,6 +149,7 @@ function buildMetadata(input: {
   providersUsed: string[];
   providersSkipped: string[];
   toolsUsed: string[];
+  toolsAttempted: string[];
   firecrawlStatus: FirecrawlStatus;
   successfulProviderCount: number;
   fallbackReason?: string;
@@ -165,6 +166,7 @@ function buildMetadata(input: {
     providersUsed: Array.from(new Set(input.providersUsed)),
     providersSkipped: Array.from(new Set(input.providersSkipped)),
     toolsUsed: Array.from(new Set(input.toolsUsed)),
+    toolsAttempted: Array.from(new Set(input.toolsAttempted)),
     firecrawlStatus: input.firecrawlStatus,
     expectedProviderCount,
     successfulProviderCount: input.successfulProviderCount,
@@ -252,6 +254,7 @@ export async function generateDiagnoseResponse(
       providersUsed: ["openai", "gemini", "anthropic"],
       providersSkipped: [],
       toolsUsed: [],
+      toolsAttempted: [],
       firecrawlStatus: "skipped",
       successfulProviderCount: 3,
       providerErrors: [],
@@ -271,20 +274,27 @@ export async function generateDiagnoseResponse(
   if (!env.hasAnyProviderKey) {
     const fallbackReason =
       "Live provider mode is unavailable because no provider API keys are configured.";
+    const providersSkipped = buildSkippedProviders({
+      hasGeminiKey: env.hasGeminiKey,
+      hasOpenAIKey: env.hasOpenAIKey,
+      hasAnthropicKey: env.hasAnthropicKey,
+      providerSkipped: [],
+    });
     const metadata = buildMetadata({
       mode: "live",
       source: "mock-fallback",
       demoMode: false,
       providersConfigured,
-      providersUsed: ["openai", "gemini", "anthropic"],
-      providersSkipped: [],
+      providersUsed: [],
+      providersSkipped,
       toolsUsed: [],
+      toolsAttempted: [],
       firecrawlStatus: request.productUrl?.trim()
         ? env.hasFirecrawlKey
           ? "skipped"
           : "unavailable"
         : "skipped",
-      successfulProviderCount: 3,
+      successfulProviderCount: 0,
       fallbackReason,
       providerErrors: [],
     });
@@ -303,6 +313,7 @@ export async function generateDiagnoseResponse(
 
   let urlContext: string | undefined;
   let firecrawlSuccess = false;
+  const firecrawlAttempted = Boolean(request.productUrl?.trim() && env.hasFirecrawlKey);
   const serviceErrors: Array<{
     provider: ProviderError["provider"];
     message: string;
@@ -349,11 +360,12 @@ export async function generateDiagnoseResponse(
       source: "mock-fallback",
       demoMode: false,
       providersConfigured,
-      providersUsed: ["openai", "gemini", "anthropic"],
-      providersSkipped: [],
+      providersUsed: [],
+      providersSkipped,
       toolsUsed: firecrawlStatus === "used" ? ["firecrawl"] : [],
+      toolsAttempted: firecrawlAttempted ? ["firecrawl"] : [],
       firecrawlStatus,
-      successfulProviderCount: 3,
+      successfulProviderCount: 0,
       fallbackReason,
       providerErrors,
       urlContextLength,
@@ -387,6 +399,7 @@ export async function generateDiagnoseResponse(
     providersUsed: outputs.map((output) => output.provider),
     providersSkipped,
     toolsUsed: firecrawlStatus === "used" ? ["firecrawl"] : [],
+    toolsAttempted: firecrawlAttempted ? ["firecrawl"] : [],
     firecrawlStatus,
     successfulProviderCount: outputs.length,
     providerErrors,

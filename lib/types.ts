@@ -115,6 +115,7 @@ export type DiagnoseMetadata = {
   providersUsed: string[];
   providersSkipped: string[];
   toolsUsed: string[];
+  toolsAttempted: string[];
   firecrawlStatus: FirecrawlStatus;
   expectedProviderCount: number;
   successfulProviderCount: number;

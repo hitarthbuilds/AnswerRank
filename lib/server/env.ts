@@ -1,12 +1,11 @@
 import "server-only";
 
 function parseDemoMode(value: string | undefined) {
-  if (!value) {
+  if (typeof value !== "string") {
     return true;
   }
 
-  const normalized = value.trim().toLowerCase();
-  return !["false", "flase", "0", "no", "off"].includes(normalized);
+  return value.trim().toLowerCase() === "true";
 }
 
 export function getServerEnv() {

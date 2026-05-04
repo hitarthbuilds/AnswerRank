@@ -24,19 +24,19 @@ function formatFirecrawlStatus(
 ) {
   if (status === "used") {
     return urlContextLength
-      ? `Firecrawl used (${urlContextLength.toLocaleString()} chars)`
-      : "Firecrawl used";
+      ? `Used (${urlContextLength.toLocaleString()} chars)`
+      : "Used";
   }
 
   if (status === "failed") {
-    return "Firecrawl failed";
+    return "Attempted but failed; continued with submitted product context";
   }
 
   if (status === "unavailable") {
-    return "Firecrawl unavailable";
+    return "Unavailable; key not configured";
   }
 
-  return "Firecrawl skipped";
+  return "Skipped";
 }
 
 function formatServiceLabel(value: string) {
@@ -45,6 +45,33 @@ function formatServiceLabel(value: string) {
   if (value === "anthropic") return "Anthropic";
   if (value === "firecrawl") return "Firecrawl";
   return value;
+}
+
+function formatToolsLabel(report: DiagnoseResponse) {
+  if (report.metadata.source === "mock") {
+    return "None";
+  }
+
+  if (report.metadata.firecrawlStatus === "used") {
+    return "Firecrawl used";
+  }
+
+  if (report.metadata.firecrawlStatus === "failed") {
+    return "Firecrawl attempted but failed";
+  }
+
+  if (report.metadata.firecrawlStatus === "unavailable") {
+    return report.productUrl ? "Firecrawl unavailable" : "None";
+  }
+
+  if (report.metadata.toolsAttempted.length) {
+    return report.metadata.toolsAttempted
+      .map(formatServiceLabel)
+      .map((tool) => `${tool} attempted`)
+      .join(", ");
+  }
+
+  return "None";
 }
 
 export function ReportDashboard({ report }: ReportDashboardProps) {
@@ -91,7 +118,7 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
         : report.metadata.source === "full-live"
           ? "Full live"
           : report.metadata.source === "gemini-live"
-            ? "Gemini live"
+            ? "Live partial"
             : "Live partial";
 
   const providersUsedLabel = report.metadata.providersUsed.length
@@ -101,7 +128,7 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
       : "None";
 
   const normalizedProvidersUsedLabel =
-    report.metadata.source === "mock" || report.metadata.source === "mock-fallback"
+    report.metadata.source === "mock"
       ? "Seeded OpenAI, Gemini, Claude mock responses"
       : providersUsedLabel;
 
@@ -113,9 +140,7 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
     ? report.metadata.providersSkipped.map(formatServiceLabel).join(", ")
     : "None";
 
-  const toolsUsedLabel = report.metadata.toolsUsed.length
-    ? report.metadata.toolsUsed.map(formatServiceLabel).join(", ")
-    : "None";
+  const toolsUsedLabel = formatToolsLabel(report);
 
   const firecrawlLabel =
     report.metadata.source === "mock"
@@ -133,7 +158,7 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
         : report.metadata.source === "full-live"
           ? "This report was generated from live OpenAI, Gemini, and Claude-style provider output, then scored by the deterministic parser, AEO engine, and leaderboard builder."
           : report.metadata.source === "gemini-live"
-            ? "This report was generated from live Gemini output and then scored by the deterministic parser, AEO engine, and leaderboard builder."
+            ? "This report was generated from live Gemini output, then scored by the deterministic parser, AEO engine, and leaderboard builder."
             : "This report was generated from live multi-provider output and then scored by the deterministic parser, AEO engine, and leaderboard builder.";
 
   return (
@@ -163,10 +188,10 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
           <span>Providers used: {normalizedProvidersUsedLabel}</span>
           <span>Providers skipped: {providersSkippedLabel}</span>
           <span>
-            Coverage: {report.metadata.successfulProviderCount}/
+            Coverage: {report.metadata.successfulProviderCount} of{" "}
             {report.metadata.expectedProviderCount} answer engines
           </span>
-          <span>Tools used: {toolsUsedLabel}</span>
+          <span>Tools: {toolsUsedLabel}</span>
           <span>Firecrawl: {firecrawlLabel}</span>
           {report.metadata.fallbackReason ? (
             <span className="text-amber-700">

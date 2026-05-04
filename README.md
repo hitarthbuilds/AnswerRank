@@ -189,6 +189,30 @@ Notes:
 - OpenAI and Anthropic are skipped gracefully if their keys are empty
 - Coverage adjustment caps the displayed score when fewer than 3 answer engines run
 
+## Live demo deployment
+
+For live Gemini + Firecrawl mode on Vercel, set:
+
+```bash
+NEXT_PUBLIC_DEMO_MODE=false
+GEMINI_API_KEY=your_gemini_key
+FIRECRAWL_API_KEY=your_firecrawl_key
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+```
+
+Then redeploy. Vercel environment variable changes require a new deployment before the app picks them up.
+
+Expected source card:
+
+- Source: `Live partial`
+- Providers used: `Gemini`
+- Providers skipped: `OpenAI, Anthropic`
+- Coverage: `1/3`
+- Firecrawl: `used` or `attempted but failed`
+
+Only `NEXT_PUBLIC_DEMO_MODE` is public. API keys must remain server-side.
+
 ### Full provider deployment
 
 To enable full 3-provider live mode, add:
