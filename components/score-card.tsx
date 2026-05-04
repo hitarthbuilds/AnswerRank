@@ -32,12 +32,35 @@ function getScoreSummary(overallScore: number, mentionedCount: number) {
   return "Limited AI visibility. The product is either missing from key answer engines or being outranked by clearer competitor listings.";
 }
 
+function getCoverageLabel(successfulProviderCount: number) {
+  return `${successfulProviderCount} of 3 answer engines tested`;
+}
+
+function getCoverageNote(report: DiagnoseResponse) {
+  if (!report.metadata.coverageAdjusted) {
+    return null;
+  }
+
+  if (report.metadata.successfulProviderCount === 1) {
+    return "Coverage adjusted: this live run used 1 of 3 planned answer engines. Gemini visibility is strong, but full AEO confidence requires OpenAI and Claude adapters too.";
+  }
+
+  if (report.metadata.successfulProviderCount === 2) {
+    return "Coverage adjusted: this live run used 2 of 3 planned answer engines. Visibility is directionally strong, but full AEO confidence still requires the remaining adapter.";
+  }
+
+  if (report.metadata.successfulProviderCount === 0) {
+    return "Coverage adjusted: this live run used 0 of 3 planned answer engines. The displayed score is capped until a real answer-engine response succeeds.";
+  }
+
+  return null;
+}
+
 export function ScoreCard({ report }: ScoreCardProps) {
   const mentionedCount = report.modelResults.filter((result) => result.mentioned).length;
-  const successfulCount = report.modelResults.filter(
-    (result) => result.status === "success",
-  ).length;
+  const successfulCount = report.metadata.successfulProviderCount;
   const scoreSummary = getScoreSummary(report.overallScore, mentionedCount);
+  const coverageNote = getCoverageNote(report);
 
   return (
     <section className="rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-sm">
@@ -65,10 +88,26 @@ export function ScoreCard({ report }: ScoreCardProps) {
         <p className="text-sm font-medium text-slate-800">
           {mentionedCount} of {successfulCount} providers mentioned the product
         </p>
+        <p className="mt-1 text-xs font-medium uppercase tracking-[0.22em] text-slate-400">
+          {getCoverageLabel(successfulCount)}
+        </p>
         <p className="mt-1 text-sm leading-6 text-slate-500">
           {scoreSummary}
         </p>
+        {coverageNote ? (
+          <p className="mt-3 text-sm leading-6 text-amber-700">
+            {coverageNote}
+          </p>
+        ) : null}
       </div>
+      {report.metadata.coverageAdjusted ? (
+        <div className="mt-4 rounded-3xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-900">
+          <p>
+            Sampled score {report.metadata.sampledScore}/100 capped to{" "}
+            {report.overallScore}/100 based on live provider coverage.
+          </p>
+        </div>
+      ) : null}
       <div className="mt-6 space-y-4">
         {breakdownConfig.map((item) => {
           const value = report.scoreBreakdown[item.key];

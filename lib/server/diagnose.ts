@@ -1,6 +1,10 @@
 import "server-only";
 
-import { createMockDiagnoseResponse, buildDiagnoseResponse } from "@/lib/mock-data";
+import { buildDiagnoseResponse, createSeededRawResponses } from "@/lib/mock-data";
+import {
+  calculateProviderCoverageRatio,
+  EXPECTED_PROVIDER_COUNT,
+} from "@/lib/scoring";
 import { runProviders } from "@/lib/providers";
 import { extractProductContext } from "@/lib/providers/firecrawl";
 import type { ProviderInput } from "@/lib/providers/types";
@@ -146,10 +150,13 @@ function buildMetadata(input: {
   providersSkipped: string[];
   toolsUsed: string[];
   firecrawlStatus: FirecrawlStatus;
+  successfulProviderCount: number;
   fallbackReason?: string;
   providerErrors?: ProviderError[];
   urlContextLength?: number;
 }): DiagnoseMetadata {
+  const expectedProviderCount = EXPECTED_PROVIDER_COUNT;
+
   return {
     mode: input.mode,
     source: input.source,
@@ -159,6 +166,14 @@ function buildMetadata(input: {
     providersSkipped: Array.from(new Set(input.providersSkipped)),
     toolsUsed: Array.from(new Set(input.toolsUsed)),
     firecrawlStatus: input.firecrawlStatus,
+    expectedProviderCount,
+    successfulProviderCount: input.successfulProviderCount,
+    providerCoverageRatio: calculateProviderCoverageRatio(
+      input.successfulProviderCount,
+      expectedProviderCount,
+    ),
+    sampledScore: 0,
+    coverageAdjusted: input.successfulProviderCount < expectedProviderCount,
     fallbackReason: input.fallbackReason,
     providerErrors: input.providerErrors ?? [],
     urlContextLength: input.urlContextLength,
@@ -185,15 +200,16 @@ function logDiagnoseEvent(input: {
 
 function buildMockResponseWithMetadata(
   request: DiagnoseRequest,
-  metadata: DiagnoseMetadata,
+  metadata: Partial<DiagnoseMetadata>,
   errors: ProviderError[],
 ) {
-  const report = createMockDiagnoseResponse(request);
-  return {
-    ...report,
+  return buildDiagnoseResponse({
+    request,
+    rawResponses: createSeededRawResponses(request.targetQuery),
+    source: "mock",
     metadata,
     errors,
-  };
+  });
 }
 
 export async function generateDiagnoseResponse(
@@ -217,6 +233,7 @@ export async function generateDiagnoseResponse(
       providersSkipped: [],
       toolsUsed: [],
       firecrawlStatus: "skipped",
+      successfulProviderCount: 3,
       providerErrors: [],
     });
 
@@ -252,6 +269,7 @@ export async function generateDiagnoseResponse(
           ? "skipped"
           : "unavailable"
         : "skipped",
+      successfulProviderCount: 0,
       fallbackReason,
       providerErrors: [],
     });
@@ -322,6 +340,7 @@ export async function generateDiagnoseResponse(
       providersSkipped,
       toolsUsed: firecrawlStatus === "used" ? ["firecrawl"] : [],
       firecrawlStatus,
+      successfulProviderCount: 0,
       fallbackReason,
       providerErrors,
       urlContextLength,
@@ -356,6 +375,7 @@ export async function generateDiagnoseResponse(
     providersSkipped,
     toolsUsed: firecrawlStatus === "used" ? ["firecrawl"] : [],
     firecrawlStatus,
+    successfulProviderCount: outputs.length,
     providerErrors,
     urlContextLength,
   });

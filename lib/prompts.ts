@@ -1,4 +1,5 @@
 import type { ProviderInput } from "@/lib/providers/types";
+import type { DiagnoseResponse } from "@/lib/types";
 
 function clampPromptSection(value: string | undefined, maxLength = 5_000) {
   if (!value) {
@@ -50,4 +51,72 @@ ${competitors}
 
 Instruction:
 Answer naturally as an AI shopping assistant. Include specific product or brand recommendations if relevant. Do not mention this is a diagnostic test.`;
+}
+
+function compactFixItReport(report: DiagnoseResponse) {
+  return {
+    productName: report.productName,
+    targetQuery: report.targetQuery,
+    audience: report.audience,
+    region: report.region,
+    overallScore: report.overallScore,
+    scoreBreakdown: report.scoreBreakdown,
+    providerResults: report.modelResults.map((result) => ({
+      provider: result.provider,
+      mentioned: result.mentioned,
+      rank: result.rank,
+      summary: result.summary,
+    })),
+    competitorLeaderboard: report.competitorLeaderboard.slice(0, 4).map((item) => ({
+      name: item.name,
+      mentions: item.mentions,
+      averageRank: item.averageRank,
+      visibilityScore: item.visibilityScore,
+      winReason: item.winReason,
+    })),
+    insights: report.insights,
+    recommendations: report.recommendations.map((item) => ({
+      category: item.category,
+      priority: item.priority,
+      title: item.title,
+      description: item.description,
+    })),
+    faqItems: report.faqItems,
+  };
+}
+
+export function buildFixItPrompt(
+  report: DiagnoseResponse,
+  productDescription?: string,
+) {
+  const currentDescription =
+    productDescription?.trim() || report.productDescription || "Not provided";
+
+  return `You are an AEO listing strategist for ecommerce brands.
+
+Use the diagnostic report to rewrite the product listing so it is easier for AI answer engines to understand, rank, and recommend.
+
+Focus on:
+- buyer intent
+- clear product fit
+- trust signals
+- dosage/feature clarity
+- comparison language
+- FAQ-style answers
+
+Diagnostic report:
+${JSON.stringify(compactFixItReport(report), null, 2)}
+
+Current product description:
+${currentDescription}
+
+Return JSON only:
+{
+  "rewrittenTitle": "string",
+  "rewrittenBullets": ["string", "string", "string", "string", "string"],
+  "generatedFAQ": [
+    { "question": "string", "answer": "string" }
+  ],
+  "positioningStatement": "string"
+}`;
 }

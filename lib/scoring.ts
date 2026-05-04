@@ -1,5 +1,7 @@
 import type { CompetitorScore, ModelResult, ScoreBreakdown, Sentiment } from "@/lib/types";
 
+export const EXPECTED_PROVIDER_COUNT = 3;
+
 const QUERY_STOP_WORDS = new Set([
   "a",
   "an",
@@ -153,4 +155,38 @@ export function calculateOverallScore(scoreBreakdown: ScoreBreakdown) {
       scoreBreakdown.competitorGap +
       scoreBreakdown.queryRelevance,
   );
+}
+
+export function calculateProviderCoverageRatio(
+  successfulProviderCount: number,
+  expectedProviderCount = EXPECTED_PROVIDER_COUNT,
+) {
+  if (!expectedProviderCount) {
+    return 0;
+  }
+
+  return successfulProviderCount / expectedProviderCount;
+}
+
+export function getCoverageCappedMaxScore(successfulProviderCount: number) {
+  if (successfulProviderCount >= 3) {
+    return 100;
+  }
+
+  if (successfulProviderCount === 2) {
+    return 88;
+  }
+
+  if (successfulProviderCount === 1) {
+    return 75;
+  }
+
+  return 0;
+}
+
+export function calculateCoverageAdjustedOverallScore(
+  sampledScore: number,
+  successfulProviderCount: number,
+) {
+  return Math.min(sampledScore, getCoverageCappedMaxScore(successfulProviderCount));
 }

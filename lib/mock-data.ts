@@ -1,6 +1,12 @@
 import { buildCompetitorLeaderboard } from "@/lib/leaderboard";
 import { parseProviderResponse } from "@/lib/parser";
-import { calculateOverallScore, calculateScoreBreakdown } from "@/lib/scoring";
+import {
+  calculateCoverageAdjustedOverallScore,
+  calculateOverallScore,
+  calculateProviderCoverageRatio,
+  calculateScoreBreakdown,
+  EXPECTED_PROVIDER_COUNT,
+} from "@/lib/scoring";
 import { SAMPLE_DIAGNOSTIC_VALUES } from "@/lib/sample-input";
 import type {
   DiagnoseMetadata,
@@ -256,6 +262,11 @@ export function createMockDiagnoseResponse(
       providersSkipped: [],
       toolsUsed: [],
       firecrawlStatus: "skipped",
+      expectedProviderCount: EXPECTED_PROVIDER_COUNT,
+      successfulProviderCount: 3,
+      providerCoverageRatio: 1,
+      sampledScore: 0,
+      coverageAdjusted: false,
       providerErrors: [],
     },
     errors: [],
@@ -266,7 +277,7 @@ type BuildDiagnoseResponseInput = {
   request: DiagnoseRequest;
   rawResponses: RawModelResponse[];
   source: DiagnoseResponse["source"];
-  metadata?: DiagnoseMetadata;
+  metadata?: Partial<DiagnoseMetadata>;
   errors?: ProviderError[];
 };
 
@@ -303,21 +314,45 @@ export function buildDiagnoseResponse({
     productDescription,
     targetQuery,
   });
+  const sampledScore = calculateOverallScore(scoreBreakdown);
+  const expectedProviderCount =
+    metadata?.expectedProviderCount ?? EXPECTED_PROVIDER_COUNT;
+  const successfulProviderCount =
+    metadata?.successfulProviderCount ??
+    modelResults.filter((result) => result.status === "success").length;
+  const providerCoverageRatio = calculateProviderCoverageRatio(
+    successfulProviderCount,
+    expectedProviderCount,
+  );
+  const coverageAdjusted = successfulProviderCount < expectedProviderCount;
+  const resolvedMetadata: DiagnoseMetadata = {
+    mode: metadata?.mode ?? source,
+    source: metadata?.source ?? (source === "live" ? "gemini-live" : "mock"),
+    demoMode: metadata?.demoMode ?? (source === "mock"),
+    providersConfigured: metadata?.providersConfigured ?? [],
+    providersUsed:
+      metadata?.providersUsed ?? rawResponses.map((response) => response.provider),
+    providersSkipped: metadata?.providersSkipped ?? [],
+    toolsUsed: metadata?.toolsUsed ?? [],
+    firecrawlStatus: metadata?.firecrawlStatus ?? "skipped",
+    expectedProviderCount,
+    successfulProviderCount,
+    providerCoverageRatio,
+    sampledScore,
+    coverageAdjusted,
+    fallbackReason: metadata?.fallbackReason,
+    providerErrors: metadata?.providerErrors ?? errors,
+    urlContextLength: metadata?.urlContextLength,
+  };
+  const overallScore = calculateCoverageAdjustedOverallScore(
+    sampledScore,
+    successfulProviderCount,
+  );
 
   return {
     reportId: `${source}-${slugify(productName) || "answerrank-report"}`,
     source,
-    metadata: metadata ?? {
-      mode: source,
-      source: source === "live" ? "gemini-live" : "mock",
-      demoMode: source === "mock",
-      providersConfigured: [],
-      providersUsed: rawResponses.map((response) => response.provider),
-      providersSkipped: [],
-      toolsUsed: [],
-      firecrawlStatus: "skipped",
-      providerErrors: errors,
-    },
+    metadata: resolvedMetadata,
     generatedAt: new Date().toISOString(),
     productName,
     productUrl: request.productUrl,
@@ -325,7 +360,7 @@ export function buildDiagnoseResponse({
     targetQuery,
     audience: request.audience || SAMPLE_DIAGNOSE_REQUEST.audience,
     region: request.region || SAMPLE_DIAGNOSE_REQUEST.region,
-    overallScore: calculateOverallScore(scoreBreakdown),
+    overallScore,
     scoreBreakdown,
     modelResults,
     competitorLeaderboard,

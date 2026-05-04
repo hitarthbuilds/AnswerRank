@@ -111,6 +111,11 @@ export type DiagnoseMetadata = {
   providersSkipped: string[];
   toolsUsed: string[];
   firecrawlStatus: FirecrawlStatus;
+  expectedProviderCount: number;
+  successfulProviderCount: number;
+  providerCoverageRatio: number;
+  sampledScore: number;
+  coverageAdjusted: boolean;
   fallbackReason?: string;
   providerErrors?: ProviderError[];
   urlContextLength?: number;
@@ -136,6 +141,18 @@ export type DiagnoseResponse = {
   faqItems: FAQItem[];
   rawResponses: RawModelResponse[];
   errors: ProviderError[];
+};
+
+export type FixItRequest = {
+  report: DiagnoseResponse;
+  productDescription?: string;
+};
+
+export type FixItResponse = {
+  rewrittenTitle: string;
+  rewrittenBullets: string[];
+  generatedFAQ: FAQItem[];
+  positioningStatement: string;
 };
 
 export type DiagnosticFormValues = {

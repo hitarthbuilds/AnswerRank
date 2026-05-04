@@ -1,4 +1,5 @@
 import { CompetitorLeaderboard } from "@/components/competitor-leaderboard";
+import { FixItEngine } from "@/components/fix-it-engine";
 import { InsightsPanel } from "@/components/insights-panel";
 import { ModelResultCard } from "@/components/model-result-card";
 import { RawResponsesPanel } from "@/components/raw-responses-panel";
@@ -36,6 +37,14 @@ function formatFirecrawlStatus(
   }
 
   return "Firecrawl skipped";
+}
+
+function formatServiceLabel(value: string) {
+  if (value === "openai") return "OpenAI";
+  if (value === "gemini") return "Gemini";
+  if (value === "anthropic") return "Anthropic";
+  if (value === "firecrawl") return "Firecrawl";
+  return value;
 }
 
 export function ReportDashboard({ report }: ReportDashboardProps) {
@@ -82,21 +91,21 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
         : "Gemini live";
 
   const providersUsedLabel = report.metadata.providersUsed.length
-    ? report.metadata.providersUsed.join(", ")
+    ? report.metadata.providersUsed.map(formatServiceLabel).join(", ")
     : report.metadata.source === "mock"
       ? "Seeded OpenAI, Gemini, Claude mock responses"
       : "None";
 
   const providersConfiguredLabel = report.metadata.providersConfigured.length
-    ? report.metadata.providersConfigured.join(", ")
+    ? report.metadata.providersConfigured.map(formatServiceLabel).join(", ")
     : "None";
 
   const providersSkippedLabel = report.metadata.providersSkipped.length
-    ? report.metadata.providersSkipped.join(", ")
+    ? report.metadata.providersSkipped.map(formatServiceLabel).join(", ")
     : "None";
 
   const toolsUsedLabel = report.metadata.toolsUsed.length
-    ? report.metadata.toolsUsed.join(", ")
+    ? report.metadata.toolsUsed.map(formatServiceLabel).join(", ")
     : "None";
 
   const firecrawlLabel =
@@ -140,6 +149,10 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
           <span>Providers configured: {providersConfiguredLabel}</span>
           <span>Providers used: {providersUsedLabel}</span>
           <span>Providers skipped: {providersSkippedLabel}</span>
+          <span>
+            Coverage: {report.metadata.successfulProviderCount}/
+            {report.metadata.expectedProviderCount} answer engines
+          </span>
           <span>Tools used: {toolsUsedLabel}</span>
           <span>Firecrawl: {firecrawlLabel}</span>
           {report.metadata.fallbackReason ? (
@@ -188,6 +201,10 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
           recommendations={report.recommendations}
           faqItems={report.faqItems}
         />
+      </div>
+
+      <div className="mt-4">
+        <FixItEngine key={report.reportId} report={report} />
       </div>
 
       <div className="mt-4">
