@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { FeatureBadge } from "@/components/brand/logo";
+import { DiagnosticLoading } from "@/components/diagnostic/diagnostic-loading";
 import type { DiagnoseResponse, FixItResponse } from "@/lib/types";
 
 type FixItEngineProps = {
@@ -104,20 +105,12 @@ export function FixItEngine({ report }: FixItEngineProps) {
       ) : null}
 
       {isLoading ? (
-        <div className="mt-5 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-          {[0, 1].map((card) => (
-            <div
-              key={card}
-              className="rounded-3xl border border-slate-200/80 bg-slate-50/70 p-4"
-            >
-              <div className="h-4 w-24 animate-pulse rounded-full bg-slate-200" />
-              <div className="mt-4 space-y-3">
-                <div className="h-3 animate-pulse rounded-full bg-slate-100" />
-                <div className="h-3 w-5/6 animate-pulse rounded-full bg-slate-100" />
-                <div className="h-3 w-2/3 animate-pulse rounded-full bg-slate-100" />
-              </div>
-            </div>
-          ))}
+        <div className="mt-5">
+          <DiagnosticLoading
+            mode="fix-it"
+            productName={report.productName}
+            query={report.targetQuery}
+          />
         </div>
       ) : null}
 

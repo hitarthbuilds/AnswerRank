@@ -6,9 +6,9 @@ import {
   FeatureBadge,
   ProviderBadge,
 } from "@/components/brand/logo";
+import { DiagnosticLoading } from "@/components/diagnostic/diagnostic-loading";
 import { DiagnosticForm } from "@/components/diagnostic-form";
 import { HeroSection } from "@/components/hero-section";
-import { LoadingStatePlaceholder } from "@/components/loading-state-placeholder";
 import { ReportDashboard } from "@/components/report-dashboard";
 import { formValuesToDiagnoseRequest } from "@/lib/mock-data";
 import { SAMPLE_DIAGNOSTIC_VALUES } from "@/lib/sample-input";
@@ -72,6 +72,10 @@ export function HomeShell() {
   };
 
   const runDiagnostic = async () => {
+    if (isLoading) {
+      return;
+    }
+
     setReport(null);
     setErrorMessage(null);
     setIsLoading(true);
@@ -187,7 +191,11 @@ export function HomeShell() {
       </section>
       <section className="mt-6">
         {isLoading ? (
-          <LoadingStatePlaceholder />
+          <DiagnosticLoading
+            mode="diagnostic"
+            productName={values.productName}
+            query={values.targetQuery}
+          />
         ) : report && !errorMessage ? (
           <ReportDashboard report={report} />
         ) : null}

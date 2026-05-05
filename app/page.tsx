@@ -1,5 +1,10 @@
+import { IntroGate } from "@/components/brand/intro-gate";
 import { HomeShell } from "@/components/home-shell";
 
 export default function Home() {
-  return <HomeShell />;
+  return (
+    <IntroGate>
+      <HomeShell />
+    </IntroGate>
+  );
 }
