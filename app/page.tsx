@@ -1,10 +1,10 @@
-import { IntroGate } from "@/components/brand/intro-gate";
+import { AppLoadGate } from "@/components/brand/app-load-gate";
 import { HomeShell } from "@/components/home-shell";
 
 export default function Home() {
   return (
-    <IntroGate>
+    <AppLoadGate>
       <HomeShell />
-    </IntroGate>
+    </AppLoadGate>
   );
 }
