@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { generateFixItResponse } from "@/lib/server/fix-it";
-import { rateLimitOrThrow, RateLimitError } from "@/lib/server/rate-limit";
+import { captureLead } from "@/lib/server/leads";
+import { getClientIp, rateLimitOrThrow, RateLimitError } from "@/lib/server/rate-limit";
 import {
   InputValidationError,
-  validateFixItInput,
+  validateLeadInput,
 } from "@/lib/server/validate-diagnostic-input";
 
 type ErrorResponse = {
@@ -28,14 +28,20 @@ export async function POST(request: Request) {
   }
 
   try {
+    const lead = validateLeadInput(body);
     await rateLimitOrThrow(request, {
-      route: "fix-it",
-      limit: 5,
+      route: "leads",
+      limit: 10,
       windowMs: 60 * 60 * 1000,
+      email: lead.email,
     });
-    const payload = validateFixItInput(body);
 
-    return NextResponse.json(await generateFixItResponse(payload));
+    return NextResponse.json(
+      await captureLead({
+        lead,
+        clientIp: getClientIp(request),
+      }),
+    );
   } catch (error) {
     if (error instanceof InputValidationError) {
       return jsonError(error.message, error.status);

@@ -1,7 +1,12 @@
 import { buildCompetitorLeaderboard } from "@/lib/leaderboard";
 import { parseProviderResponse } from "@/lib/parser";
 import {
+  buildCompetitorShareOfVoice,
+  buildQueryCoverageSummary,
+  calculateConfidenceScore,
+  calculateCoverageLevel,
   calculateCoverageAdjustedOverallScore,
+  calculateMultiQueryScoreBreakdown,
   calculateOverallScore,
   calculateProviderCoverageRatio,
   calculateScoreBreakdown,
@@ -13,10 +18,15 @@ import type {
   DiagnoseRequest,
   DiagnoseResponse,
   DiagnosticFormValues,
+  ExpandedQuery,
   FAQItem,
   ModelResult,
+  ModelWiseScore,
   ProviderError,
   ProviderId,
+  QueryExpansionResult,
+  QueryProviderResult,
+  QueryVisibilitySummary,
   RawModelResponse,
   Recommendation,
 } from "@/lib/types";
@@ -37,6 +47,12 @@ const HK_VITALS_SAMPLE_COMPETITORS = [
 ];
 
 type MockScenarioId = "legacy-magnesium" | "hk-vitals";
+
+type ParsedRun = {
+  rawResponse: RawModelResponse;
+  expandedQuery: ExpandedQuery;
+  parsed: ReturnType<typeof parseProviderResponse>;
+};
 
 function slugify(value: string) {
   return value
@@ -254,7 +270,7 @@ function providerLabel(provider: ProviderId) {
   return "Claude";
 }
 
-function buildModelResultSummary(
+function buildSingleModelResultSummary(
   provider: ProviderId,
   productName: string,
   mentioned: boolean,
@@ -285,33 +301,263 @@ function buildModelResultSummary(
   return `${providerLabel(provider)} mentioned ${productName} at rank #${rank}.`;
 }
 
-function buildModelResults(
+function buildParsedRuns(
   productName: string,
   competitors: string[],
   rawResponses: RawModelResponse[],
-): ModelResult[] {
+  expandedQueries: ExpandedQuery[],
+): ParsedRun[] {
+  const queryMap = new Map(expandedQueries.map((query) => [query.id, query]));
+  const queryTextMap = new Map(
+    expandedQueries.map((query) => [normalizeEntityName(query.query), query]),
+  );
+  const fallbackQuery =
+    expandedQueries[0] ??
+    ({
+      id: slugify(rawResponses[0]?.query || productName || "seed-query"),
+      query: rawResponses[0]?.query || "",
+      intent: "best_for_use_case",
+      priority: "high",
+      source: "seed",
+    } satisfies ExpandedQuery);
+
   return rawResponses.map((rawResponse) => {
     const parsed = parseProviderResponse({
       productName,
       competitors,
       rawResponse: rawResponse.response,
     });
+    const expandedQuery =
+      (rawResponse.queryId ? queryMap.get(rawResponse.queryId) : undefined) ??
+      queryTextMap.get(normalizeEntityName(rawResponse.query)) ??
+      fallbackQuery;
 
     return {
-      provider: rawResponse.provider,
-      status: "success",
-      mentioned: parsed.userProductMentioned,
-      rank: parsed.userProductRank,
-      sentiment: parsed.sentiment,
-      confidence: parsed.confidence,
-      summary: buildModelResultSummary(
-        rawResponse.provider,
-        productName,
-        parsed.userProductMentioned,
-        parsed.userProductRank,
-        parsed.mentionedProducts,
+      rawResponse: {
+        ...rawResponse,
+        queryId: rawResponse.queryId ?? expandedQuery.id,
+        intent: rawResponse.intent ?? expandedQuery.intent,
+      },
+      expandedQuery,
+      parsed,
+    };
+  });
+}
+
+function buildMultiQueryModelResultSummary(
+  provider: ProviderId,
+  productName: string,
+  mentionCount: number,
+  totalQueries: number,
+  bestRank: number | null,
+  competitorNames: string[],
+) {
+  if (!mentionCount) {
+    if (!competitorNames.length) {
+      return `${providerLabel(provider)} did not mention ${productName}. Provider did not surface clear competing brands in this response.`;
+    }
+
+    return `${providerLabel(provider)} did not mention ${productName} across ${totalQueries} buyer-intent checks and instead surfaced ${competitorNames.join(", ")}.`;
+  }
+
+  if (competitorNames.length) {
+    return `${providerLabel(provider)} mentioned ${productName} in ${mentionCount} of ${totalQueries} buyer-intent checks with a best rank of #${bestRank}, while also surfacing ${competitorNames.join(", ")}.`;
+  }
+
+  return `${providerLabel(provider)} mentioned ${productName} in ${mentionCount} of ${totalQueries} buyer-intent checks with a best rank of #${bestRank}.`;
+}
+
+function buildModelResults(productName: string, parsedRuns: ParsedRun[]): ModelResult[] {
+  const providers = Array.from(
+    new Set(parsedRuns.map((run) => run.rawResponse.provider)),
+  );
+
+  return providers.map((provider) => {
+    const providerRuns = parsedRuns.filter(
+      (run) => run.rawResponse.provider === provider,
+    );
+    const mentionRuns = providerRuns.filter(
+      (run) => run.parsed.userProductMentioned,
+    );
+    const bestRun =
+      mentionRuns.sort(
+        (left, right) =>
+          (left.parsed.userProductRank ?? 99) - (right.parsed.userProductRank ?? 99),
+      )[0] ?? providerRuns[0];
+    const competitorNames = Array.from(
+      new Set(
+        providerRuns.flatMap((run) =>
+          run.parsed.mentionedProducts
+            .filter((product) => !product.isUserProduct)
+            .slice(0, 3)
+            .map((product) => product.name),
+        ),
       ),
-      mentionedProducts: parsed.mentionedProducts,
+    ).slice(0, 3);
+    const confidence = mentionRuns.length
+      ? Number(
+          (
+            mentionRuns.reduce(
+              (sum, run) => sum + run.parsed.confidence,
+              0,
+            ) / mentionRuns.length
+          ).toFixed(2),
+        )
+      : 0;
+    const bestRank = mentionRuns.length
+      ? Math.min(...mentionRuns.map((run) => run.parsed.userProductRank ?? 99))
+      : null;
+
+    return {
+      provider,
+      status: "success",
+      mentioned: Boolean(mentionRuns.length),
+      rank: bestRank,
+      sentiment: mentionRuns.length ? "positive" : "not_mentioned",
+      confidence,
+      summary:
+        providerRuns.length === 1
+          ? buildSingleModelResultSummary(
+              provider,
+              productName,
+              bestRun.parsed.userProductMentioned,
+              bestRun.parsed.userProductRank,
+              bestRun.parsed.mentionedProducts,
+            )
+          : buildMultiQueryModelResultSummary(
+              provider,
+              productName,
+              mentionRuns.length,
+              providerRuns.length,
+              bestRank,
+              competitorNames,
+            ),
+      mentionedProducts: bestRun?.parsed.mentionedProducts ?? [],
+    };
+  });
+}
+
+function buildQueryProviderResults(parsedRuns: ParsedRun[]): QueryProviderResult[] {
+  return parsedRuns.map((run) => ({
+    queryId: run.expandedQuery.id,
+    query: run.expandedQuery.query,
+    intent: run.expandedQuery.intent,
+    provider: run.rawResponse.provider,
+    productMentioned: run.parsed.userProductMentioned,
+    productRank: run.parsed.userProductRank,
+    competitorMentions: run.parsed.mentionedProducts
+      .filter((product) => !product.isUserProduct)
+      .map((product) => ({
+        name: product.name,
+        rank: product.rank,
+        sentiment: "neutral",
+      })),
+    rawSummary: run.parsed.mentionedProducts[0]?.reason ?? run.rawResponse.response,
+    confidence: run.parsed.confidence,
+  }));
+}
+
+function buildQueryVisibilitySummaries(
+  expandedQueries: ExpandedQuery[],
+  queryProviderResults: QueryProviderResult[],
+): QueryVisibilitySummary[] {
+  return expandedQueries.map((expandedQuery) => {
+    const runs = queryProviderResults.filter(
+      (result) => result.queryId === expandedQuery.id,
+    );
+    const mentionedRuns = runs.filter((result) => result.productMentioned);
+    const strongestCompetitorCounts = new Map<
+      string,
+      { count: number; bestRank: number | null }
+    >();
+
+    for (const run of runs) {
+      for (const mention of run.competitorMentions) {
+        const current = strongestCompetitorCounts.get(mention.name) ?? {
+          count: 0,
+          bestRank: null,
+        };
+
+        strongestCompetitorCounts.set(mention.name, {
+          count: current.count + 1,
+          bestRank:
+            current.bestRank === null
+              ? mention.rank ?? null
+              : Math.min(current.bestRank, mention.rank ?? current.bestRank),
+        });
+      }
+    }
+
+    const strongestCompetitor = [...strongestCompetitorCounts.entries()].sort(
+      (left, right) => {
+        if (right[1].count !== left[1].count) {
+          return right[1].count - left[1].count;
+        }
+
+        return (left[1].bestRank ?? 99) - (right[1].bestRank ?? 99);
+      },
+    )[0]?.[0] ?? null;
+
+    const mentionCount = mentionedRuns.length;
+    const providerCount = runs.length || 1;
+    const visibilityStatus =
+      mentionCount === 0
+        ? "invisible"
+        : mentionCount >= Math.max(1, Math.ceil(providerCount / 2))
+          ? "visible"
+          : "weak";
+
+    return {
+      queryId: expandedQuery.id,
+      query: expandedQuery.query,
+      intent: expandedQuery.intent,
+      productMentionedAcrossProviders: mentionCount,
+      bestRank: mentionedRuns.length
+        ? Math.min(...mentionedRuns.map((run) => run.productRank ?? 99))
+        : null,
+      strongestCompetitor,
+      visibilityStatus,
+    };
+  });
+}
+
+function buildModelWiseScores(
+  queryProviderResults: QueryProviderResult[],
+  expandedQueries: ExpandedQuery[],
+): ModelWiseScore[] {
+  const providers = Array.from(
+    new Set(queryProviderResults.map((result) => result.provider)),
+  );
+
+  return providers.map((provider) => {
+    const runs = queryProviderResults.filter((result) => result.provider === provider);
+    const mentionRuns = runs.filter((result) => result.productMentioned);
+    const averageRank = mentionRuns.length
+      ? Number(
+          (
+            mentionRuns.reduce(
+              (sum, result) => sum + (result.productRank ?? 0),
+              0,
+            ) / mentionRuns.length
+          ).toFixed(1),
+        )
+      : null;
+    const mentionRate = runs.length ? mentionRuns.length / runs.length : 0;
+    const visibleQueries = new Set(
+      mentionRuns.map((result) => result.queryId),
+    ).size;
+    const queryCoverage = expandedQueries.length
+      ? visibleQueries / expandedQueries.length
+      : 0;
+
+    return {
+      provider,
+      visibilityScore: Math.round(
+        Math.min(100, mentionRate * 60 + (averageRank ? Math.max(0, 40 - averageRank * 8) : 0)),
+      ),
+      mentionRate: Number((mentionRate * 100).toFixed(1)),
+      averageRank,
+      queryCoverage: Number((queryCoverage * 100).toFixed(1)),
     };
   });
 }
@@ -321,25 +567,34 @@ function buildInsights(
   competitorName: string | undefined,
   source: DiagnoseResponse["source"],
   scenarioId: MockScenarioId,
+  queryCoverageSummary?: DiagnoseResponse["queryCoverage"],
 ) {
   if (scenarioId === "hk-vitals") {
     const leadCompetitor =
       competitorName || "HealthyHey Magnesium Glycinate";
 
-    return [
+    const insights = [
       `HK Vitals appears in the sampled AI answers, but ${leadCompetitor} still outranks it when dosage and trust framing are easier to scan.`,
       'Make "magnesium glycinate for sleep and muscle recovery in India" explicit much earlier in the title and top bullets.',
       "Surface elemental magnesium amount, serving size, quality proof, and digestion tolerance earlier in the listing.",
       "India-specific comparison copy would help answer engines choose HK Vitals over Tata 1mg, HealthyHey, and Carbamide Forte.",
       "FAQ coverage should answer who it is best for, how recovery support differs from general wellness magnesium, and why glycinate is positioned as a gentler form.",
     ];
+
+    if (queryCoverageSummary && queryCoverageSummary.invisibleQueries.length) {
+      insights.unshift(
+        `The product is still invisible on ${queryCoverageSummary.invisibleQueries.length} buyer-intent queries, so the broader AI buying surface is not fully captured yet.`,
+      );
+    }
+
+    return insights;
   }
 
   const providerContext =
     source === "mock" ? "seeded provider responses" : "live provider output";
   const providerVerb = source === "mock" ? "reward" : "rewards";
 
-  return [
+  const insights = [
     competitorName
       ? `${competitorName} appears more consistently because the ${providerContext} ${providerVerb} clearer trust and dosage framing.`
       : `The ${providerContext} ${providerVerb} clearer trust and dosage framing more than the current listing copy.`,
@@ -350,6 +605,14 @@ function buildInsights(
     "FAQ coverage is thin around tolerance, serving size, and who the product is best for.",
     "Comparison-style copy is easier for answer engines to summarize than broad benefit language alone.",
   ];
+
+  if (queryCoverageSummary && queryCoverageSummary.invisibleQueries.length) {
+    insights.unshift(
+      `The listing still misses ${queryCoverageSummary.invisibleQueries.length} buyer-intent variants across the sampled AI answer surface.`,
+    );
+  }
+
+  return insights;
 }
 
 function buildRecommendations(
@@ -479,16 +742,28 @@ export function formValuesToDiagnoseRequest(
 export function createMockDiagnoseResponse(
   request: DiagnoseRequest = SAMPLE_DIAGNOSE_REQUEST,
 ): DiagnoseResponse {
+  const expandedQueries = [
+    {
+      id: slugify(SAMPLE_DIAGNOSE_REQUEST.targetQuery),
+      query: SAMPLE_DIAGNOSE_REQUEST.targetQuery,
+      intent: "best_for_use_case",
+      priority: "high",
+      source: "seed",
+    } satisfies ExpandedQuery,
+  ];
+
   return buildDiagnoseResponse({
     request,
     rawResponses: createSeededRawResponses(
       withFallback(request.targetQuery, SAMPLE_DIAGNOSE_REQUEST.targetQuery),
       request,
     ),
+    expandedQueries,
     source: "mock",
     metadata: {
       mode: "mock",
       source: "mock",
+      auditMode: "free",
       demoMode: true,
       providersConfigured: [],
       providersUsed: ["openai", "gemini", "anthropic"],
@@ -496,6 +771,7 @@ export function createMockDiagnoseResponse(
       toolsUsed: [],
       toolsAttempted: [],
       firecrawlStatus: "skipped",
+      cacheStatus: "skipped",
       expectedProviderCount: EXPECTED_PROVIDER_COUNT,
       successfulProviderCount: 3,
       providerCoverageRatio: 1,
@@ -510,6 +786,7 @@ export function createMockDiagnoseResponse(
 type BuildDiagnoseResponseInput = {
   request: DiagnoseRequest;
   rawResponses: RawModelResponse[];
+  expandedQueries?: ExpandedQuery[];
   source: DiagnoseResponse["source"];
   metadata?: Partial<DiagnoseMetadata>;
   errors?: ProviderError[];
@@ -518,6 +795,7 @@ type BuildDiagnoseResponseInput = {
 export function buildDiagnoseResponse({
   request,
   rawResponses,
+  expandedQueries,
   source,
   metadata,
   errors = [],
@@ -548,53 +826,114 @@ export function buildDiagnoseResponse({
       getScenarioDefaultCompetitors(scenarioId),
     ),
   );
-  const modelResults = buildModelResults(productName, competitors, rawResponses);
+  const resolvedExpandedQueries =
+    expandedQueries && expandedQueries.length
+      ? expandedQueries
+      : [
+          {
+            id: slugify(targetQuery),
+            query: targetQuery,
+            intent: "best_for_use_case",
+            priority: "high",
+            source: "seed",
+          } satisfies ExpandedQuery,
+        ];
+  const parsedRuns = buildParsedRuns(
+    productName,
+    competitors,
+    rawResponses,
+    resolvedExpandedQueries,
+  );
+  const normalizedRawResponses = parsedRuns.map((run) => run.rawResponse);
+  const queryProviderResults = buildQueryProviderResults(parsedRuns);
+  const modelResults = buildModelResults(productName, parsedRuns);
   const competitorLeaderboard = buildCompetitorLeaderboard({
     competitors,
-    modelResults,
+    queryProviderResults,
   });
-  const scoreBreakdown = calculateScoreBreakdown({
-    modelResults,
-    competitorLeaderboard,
-    productName,
-    productDescription,
-    targetQuery,
+  const competitorShareOfVoice = buildCompetitorShareOfVoice({
+    queryProviderResults,
+    productMentionCount: queryProviderResults.filter(
+      (result) => result.productMentioned,
+    ).length,
   });
-  const sampledScore = calculateOverallScore(scoreBreakdown);
+  const queryVisibilitySummaries = buildQueryVisibilitySummaries(
+    resolvedExpandedQueries,
+    queryProviderResults,
+  );
+  const queryCoverage = buildQueryCoverageSummary({
+    expandedQueries: resolvedExpandedQueries,
+    queryProviderResults,
+  });
+  const scoreBreakdown =
+    resolvedExpandedQueries.length > 1
+      ? calculateMultiQueryScoreBreakdown({
+          queryProviderResults,
+          competitorShareOfVoice,
+          productName,
+          productDescription,
+          targetQuery,
+        })
+      : calculateScoreBreakdown({
+          modelResults,
+          competitorLeaderboard,
+          productName,
+          productDescription,
+          targetQuery,
+        });
+  const visibilityScore = calculateOverallScore(scoreBreakdown);
   const expectedProviderCount =
     metadata?.expectedProviderCount ?? EXPECTED_PROVIDER_COUNT;
   const successfulProviderCount =
     metadata?.successfulProviderCount ??
-    modelResults.filter((result) => result.status === "success").length;
+    new Set(
+      modelResults
+        .filter((result) => result.status === "success")
+        .map((result) => result.provider),
+    ).size;
   const providerCoverageRatio = calculateProviderCoverageRatio(
     successfulProviderCount,
     expectedProviderCount,
   );
   const coverageAdjusted = successfulProviderCount < expectedProviderCount;
+  const coverageLevel = calculateCoverageLevel(successfulProviderCount);
+  const confidenceScore = calculateConfidenceScore({
+    providerCoverageRatio,
+    queryCoverage,
+  });
   const resolvedMetadata: DiagnoseMetadata = {
     mode: metadata?.mode ?? source,
     source: metadata?.source ?? (source === "live" ? "gemini-live" : "mock"),
+    auditMode: metadata?.auditMode ?? request.auditMode ?? "free",
     demoMode: metadata?.demoMode ?? (source === "mock"),
     providersConfigured: metadata?.providersConfigured ?? [],
     providersUsed:
-      metadata?.providersUsed ?? rawResponses.map((response) => response.provider),
+      metadata?.providersUsed ??
+      Array.from(new Set(normalizedRawResponses.map((response) => response.provider))),
     providersSkipped: metadata?.providersSkipped ?? [],
     toolsUsed: metadata?.toolsUsed ?? [],
     toolsAttempted: metadata?.toolsAttempted ?? [],
     firecrawlStatus: metadata?.firecrawlStatus ?? "skipped",
+    cacheStatus: metadata?.cacheStatus ?? "skipped",
     expectedProviderCount,
     successfulProviderCount,
     providerCoverageRatio,
-    sampledScore,
+    sampledScore: visibilityScore,
     coverageAdjusted,
     fallbackReason: metadata?.fallbackReason,
     providerErrors: metadata?.providerErrors ?? errors,
     urlContextLength: metadata?.urlContextLength,
   };
   const overallScore = calculateCoverageAdjustedOverallScore(
-    sampledScore,
+    visibilityScore,
     successfulProviderCount,
   );
+  const queryExpansion: QueryExpansionResult = {
+    seedQuery: targetQuery,
+    expandedQueries: resolvedExpandedQueries,
+    mode: resolvedMetadata.auditMode,
+    generatedAt: new Date().toISOString(),
+  };
 
   return {
     reportId: `${source}-${slugify(productName) || "answerrank-report"}`,
@@ -608,14 +947,28 @@ export function buildDiagnoseResponse({
     audience: request.audience || SAMPLE_DIAGNOSE_REQUEST.audience,
     region: request.region || SAMPLE_DIAGNOSE_REQUEST.region,
     overallScore,
+    visibilityScore,
+    confidenceScore,
+    coverageLevel,
     scoreBreakdown,
     modelResults,
+    expandedQueries: resolvedExpandedQueries,
+    queryExpansion,
+    queryProviderResults,
+    queryVisibilitySummaries,
+    modelWiseScores: buildModelWiseScores(
+      queryProviderResults,
+      resolvedExpandedQueries,
+    ),
+    competitorShareOfVoice,
+    queryCoverage,
     competitorLeaderboard,
     insights: buildInsights(
       productDescription,
       competitorLeaderboard[0]?.name,
       source,
       scenarioId,
+      queryCoverage,
     ),
     recommendations: buildRecommendations(
       productName,
@@ -623,7 +976,7 @@ export function buildDiagnoseResponse({
       scenarioId,
     ),
     faqItems: createFaqItems(productName, scenarioId),
-    rawResponses,
+    rawResponses: normalizedRawResponses,
     errors,
   };
 }

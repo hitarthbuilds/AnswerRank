@@ -1,8 +1,8 @@
-import type { CompetitorScore, ModelResult } from "@/lib/types";
+import type { CompetitorScore, QueryProviderResult } from "@/lib/types";
 
 type LeaderboardInput = {
   competitors: string[];
-  modelResults: ModelResult[];
+  queryProviderResults: QueryProviderResult[];
 };
 
 function average(values: number[]) {
@@ -33,27 +33,31 @@ function compactReason(reason: string) {
 
 export function buildCompetitorLeaderboard({
   competitors,
-  modelResults,
+  queryProviderResults,
 }: LeaderboardInput): CompetitorScore[] {
   const leaderboard = competitors
     .map((competitor) => {
-      const mentions = modelResults
-        .filter((result) => result.status === "success")
-        .map((result) =>
-          result.mentionedProducts.find(
-            (product) =>
-              !product.isUserProduct &&
-              product.name.toLowerCase() === competitor.toLowerCase(),
-          ),
-        )
+      const mentions = queryProviderResults
+        .flatMap((result) => result.competitorMentions)
         .filter(
-          (product): product is NonNullable<(typeof modelResults)[number]["mentionedProducts"][number]> =>
-            Boolean(product),
+          (mention) => mention.name.toLowerCase() === competitor.toLowerCase(),
         );
 
-      const ranks = mentions.map((product) => product.rank);
+      const ranks = mentions
+        .map((product) => product.rank ?? null)
+        .filter((rank): rank is number => typeof rank === "number");
       const reasons = Array.from(
-        new Set(mentions.map((product) => compactReason(product.reason))),
+        new Set(
+          queryProviderResults
+            .filter((result) =>
+              result.competitorMentions.some(
+                (mention) =>
+                  mention.name.toLowerCase() === competitor.toLowerCase(),
+              ),
+            )
+            .map((result) => compactReason(result.rawSummary ?? ""))
+            .filter(Boolean),
+        ),
       );
       const averageRank = average(ranks);
 

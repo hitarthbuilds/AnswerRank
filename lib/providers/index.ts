@@ -11,6 +11,21 @@ import type {
   ProviderResult,
 } from "@/lib/providers/types";
 
+export function runProvider(
+  provider: ProviderId,
+  input: ProviderInput,
+): Promise<ProviderResult> {
+  if (provider === "openai") {
+    return runOpenAIProvider(input);
+  }
+
+  if (provider === "gemini") {
+    return runGeminiProvider(input);
+  }
+
+  return runAnthropicProvider(input);
+}
+
 export async function runProviders(
   input: ProviderInput,
   allowedProviders: ProviderId[] = ["openai", "gemini", "anthropic"],
@@ -19,21 +34,9 @@ export async function runProviders(
   errors: ProviderError[];
   skipped: ProviderOutput["provider"][];
 }> {
-  const tasks: Promise<ProviderResult>[] = [];
-
-  if (allowedProviders.includes("openai")) {
-    tasks.push(runOpenAIProvider(input));
-  }
-
-  if (allowedProviders.includes("gemini")) {
-    tasks.push(runGeminiProvider(input));
-  }
-
-  if (allowedProviders.includes("anthropic")) {
-    tasks.push(runAnthropicProvider(input));
-  }
-
-  const results = await Promise.all<ProviderResult>(tasks);
+  const results = await Promise.all<ProviderResult>(
+    allowedProviders.map((provider) => runProvider(provider, input)),
+  );
 
   const outputs: ProviderOutput[] = [];
   const errors: ProviderError[] = [];

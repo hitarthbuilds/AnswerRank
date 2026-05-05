@@ -125,6 +125,32 @@ export function ScoreCard({ report }: ScoreCardProps) {
           </p>
         </div>
       ) : null}
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-3xl border border-slate-200/80 bg-slate-50/70 p-4">
+          <p className="text-xs uppercase tracking-[0.22em] text-slate-400">
+            Visibility Score
+          </p>
+          <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+            {report.visibilityScore}
+          </p>
+        </div>
+        <div className="rounded-3xl border border-slate-200/80 bg-slate-50/70 p-4">
+          <p className="text-xs uppercase tracking-[0.22em] text-slate-400">
+            Confidence Score
+          </p>
+          <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+            {report.confidenceScore}
+          </p>
+        </div>
+        <div className="rounded-3xl border border-slate-200/80 bg-slate-50/70 p-4">
+          <p className="text-xs uppercase tracking-[0.22em] text-slate-400">
+            Coverage Level
+          </p>
+          <p className="mt-2 text-lg font-semibold tracking-tight text-slate-950">
+            {report.coverageLevel}
+          </p>
+        </div>
+      </div>
       <div className="mt-6 space-y-4">
         {breakdownConfig.map((item) => {
           const value = report.scoreBreakdown[item.key];

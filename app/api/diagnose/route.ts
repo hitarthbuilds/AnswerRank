@@ -1,22 +1,21 @@
 import { NextResponse } from "next/server";
-import { normalizeCompetitorsInput } from "@/lib/mock-data";
 import { generateDiagnoseResponse } from "@/lib/server/diagnose";
-import type { DiagnoseRequest } from "@/lib/types";
+import { rateLimitOrThrow, RateLimitError } from "@/lib/server/rate-limit";
+import {
+  InputValidationError,
+  validateDiagnosticInput,
+} from "@/lib/server/validate-diagnostic-input";
 
 type ErrorResponse = {
   error: string;
+  message?: string;
 };
 
-function jsonError(message: string, status = 400) {
-  return NextResponse.json<ErrorResponse>({ error: message }, { status });
-}
-
-function readOptionalString(value: unknown) {
-  return typeof value === "string" ? value.trim() || undefined : undefined;
-}
-
-function readRequiredString(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
+function jsonError(message: string, status = 400, detail?: string) {
+  return NextResponse.json<ErrorResponse>(
+    detail ? { error: message, message: detail } : { error: message },
+    { status },
+  );
 }
 
 export async function POST(request: Request) {
@@ -28,41 +27,34 @@ export async function POST(request: Request) {
     return jsonError("Invalid JSON body.");
   }
 
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return jsonError("Request body must be a JSON object.");
-  }
+  try {
+    const normalizedRequest = validateDiagnosticInput(body);
+    await rateLimitOrThrow(request, {
+      route: "diagnose-free",
+      limit: 5,
+      windowMs: 60 * 60 * 1000,
+      email: normalizedRequest.leadEmail,
+    });
 
-  const payload = body as Partial<DiagnoseRequest>;
-  const productName = readRequiredString(payload.productName);
-  const targetQuery = readRequiredString(payload.targetQuery);
-  const productDescription = readOptionalString(payload.productDescription);
-  const productUrl = readOptionalString(payload.productUrl);
-
-  if (!productName) {
-    return jsonError("productName is required.");
-  }
-
-  if (!targetQuery) {
-    return jsonError("targetQuery is required.");
-  }
-
-  if (!productDescription && !productUrl) {
-    return jsonError(
-      "Provide at least one of productDescription or productUrl.",
+    return NextResponse.json(
+      await generateDiagnoseResponse({
+        ...normalizedRequest,
+        auditMode: normalizedRequest.auditMode ?? "free",
+      }),
     );
+  } catch (error) {
+    if (error instanceof InputValidationError) {
+      return jsonError(error.message, error.status);
+    }
+
+    if (error instanceof RateLimitError) {
+      return jsonError(
+        "Rate limit exceeded",
+        error.status,
+        "You have reached the free diagnostic limit. Try again later or request a full AI visibility audit.",
+      );
+    }
+
+    throw error;
   }
-
-  const competitors = normalizeCompetitorsInput(payload.competitors);
-
-  const normalizedRequest: DiagnoseRequest = {
-    productName,
-    targetQuery,
-    productDescription,
-    productUrl,
-    competitors: competitors.length ? competitors : undefined,
-    audience: readOptionalString(payload.audience),
-    region: readOptionalString(payload.region),
-  };
-
-  return NextResponse.json(await generateDiagnoseResponse(normalizedRequest));
 }

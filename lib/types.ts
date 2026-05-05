@@ -1,5 +1,11 @@
 export type ProviderId = "openai" | "gemini" | "anthropic";
 
+export type AuditMode = "free" | "full";
+
+export type CoverageLevel = "sample" | "partial" | "tri-engine";
+
+export type CacheStatus = "hit" | "miss" | "skipped";
+
 export type ToolId = "firecrawl";
 
 export type ExternalServiceId = ProviderId | ToolId;
@@ -27,9 +33,37 @@ export type DiagnoseRequest = {
   productUrl?: string;
   productDescription?: string;
   targetQuery: string;
+  buyerIntentQuery?: string;
   competitors?: string[] | string;
   audience?: string;
   region?: string;
+  auditMode?: AuditMode;
+  leadEmail?: string;
+};
+
+export type QueryIntent =
+  | "best_for_use_case"
+  | "comparison"
+  | "alternative"
+  | "problem_solution"
+  | "ingredient_or_feature"
+  | "regional_purchase"
+  | "trust_or_safety"
+  | "price_value";
+
+export type ExpandedQuery = {
+  id: string;
+  query: string;
+  intent: QueryIntent;
+  priority: "high" | "medium" | "low";
+  source: "seed" | "deterministic" | "llm";
+};
+
+export type QueryExpansionResult = {
+  seedQuery: string;
+  expandedQueries: ExpandedQuery[];
+  mode: AuditMode;
+  generatedAt: string;
 };
 
 export type ScoreBreakdown = {
@@ -90,8 +124,60 @@ export type FAQItem = {
 
 export type RawModelResponse = {
   provider: ProviderId;
+  queryId?: string;
+  intent?: QueryIntent;
   query: string;
   response: string;
+};
+
+export type QueryProviderResult = {
+  queryId: string;
+  query: string;
+  intent: QueryIntent;
+  provider: ProviderId;
+  productMentioned: boolean;
+  productRank?: number | null;
+  competitorMentions: Array<{
+    name: string;
+    rank?: number | null;
+    sentiment?: "positive" | "neutral" | "negative";
+  }>;
+  rawSummary?: string;
+  confidence?: number;
+};
+
+export type QueryVisibilitySummary = {
+  queryId: string;
+  query: string;
+  intent: QueryIntent;
+  productMentionedAcrossProviders: number;
+  bestRank?: number | null;
+  strongestCompetitor?: string | null;
+  visibilityStatus: "visible" | "weak" | "invisible";
+};
+
+export type ModelWiseScore = {
+  provider: ProviderId;
+  visibilityScore: number;
+  mentionRate: number;
+  averageRank: number | null;
+  queryCoverage: number;
+};
+
+export type CompetitorShareOfVoice = {
+  name: string;
+  mentionCount: number;
+  providerCount: number;
+  queryCount: number;
+  averageRank: number | null;
+  advantageVsProduct: number;
+};
+
+export type QueryCoverageSummary = {
+  totalExpandedQueries: number;
+  highPriorityQueries: number;
+  productVisibleOnHighPriorityQueries: number;
+  invisibleQueries: string[];
 };
 
 export type FirecrawlStatus = "used" | "skipped" | "failed" | "unavailable";
@@ -110,6 +196,7 @@ export type DiagnoseMetadata = {
     | "full-live"
     | "live-partial"
     | "mock-fallback";
+  auditMode: AuditMode;
   demoMode: boolean;
   providersConfigured: string[];
   providersUsed: string[];
@@ -117,6 +204,7 @@ export type DiagnoseMetadata = {
   toolsUsed: string[];
   toolsAttempted: string[];
   firecrawlStatus: FirecrawlStatus;
+  cacheStatus: CacheStatus;
   expectedProviderCount: number;
   successfulProviderCount: number;
   providerCoverageRatio: number;
@@ -139,8 +227,18 @@ export type DiagnoseResponse = {
   audience?: string;
   region?: string;
   overallScore: number;
+  visibilityScore: number;
+  confidenceScore: number;
+  coverageLevel: CoverageLevel;
   scoreBreakdown: ScoreBreakdown;
   modelResults: ModelResult[];
+  expandedQueries: ExpandedQuery[];
+  queryExpansion: QueryExpansionResult;
+  queryProviderResults: QueryProviderResult[];
+  queryVisibilitySummaries: QueryVisibilitySummary[];
+  modelWiseScores: ModelWiseScore[];
+  competitorShareOfVoice: CompetitorShareOfVoice[];
+  queryCoverage: QueryCoverageSummary;
   competitorLeaderboard: CompetitorScore[];
   insights: string[];
   recommendations: Recommendation[];
@@ -169,4 +267,19 @@ export type DiagnosticFormValues = {
   competitors: string;
   audience: string;
   region: string;
+};
+
+export type LeadCaptureSource =
+  | "form"
+  | "report_cta"
+  | "full_audit_request";
+
+export type LeadRequest = {
+  email: string;
+  companyName?: string;
+  productName?: string;
+  productUrl?: string;
+  buyerIntentQuery?: string;
+  source: LeadCaptureSource;
+  auditModeRequested: AuditMode;
 };

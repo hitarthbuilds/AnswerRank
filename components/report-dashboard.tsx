@@ -5,8 +5,10 @@ import {
 } from "@/components/brand/logo";
 import { CompetitorLeaderboard } from "@/components/competitor-leaderboard";
 import { FixItEngine } from "@/components/fix-it-engine";
+import { FullAuditCta } from "@/components/full-audit-cta";
 import { InsightsPanel } from "@/components/insights-panel";
 import { ModelResultCard } from "@/components/model-result-card";
+import { QueryBreakdownPanel } from "@/components/query-breakdown-panel";
 import { RawResponsesPanel } from "@/components/raw-responses-panel";
 import { RecommendationsPanel } from "@/components/recommendations-panel";
 import { ScoreCard } from "@/components/score-card";
@@ -121,9 +123,11 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
       : report.metadata.source === "mock-fallback"
         ? "Mock fallback"
         : report.metadata.source === "full-live"
-          ? "Full live"
-          : report.metadata.source === "gemini-live"
-            ? "Live partial"
+          ? "Full tri-engine audit"
+        : report.metadata.source === "gemini-live"
+            ? report.metadata.auditMode === "free"
+              ? "Gemini sample diagnostic"
+              : "Live partial"
             : "Live partial";
 
   const providersUsedLabel = report.metadata.providersUsed.length
@@ -161,9 +165,9 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
       : report.metadata.source === "mock-fallback"
         ? "Live mode was attempted, but the server returned a seeded fallback report instead."
         : report.metadata.source === "full-live"
-          ? "This report was generated from live OpenAI, Gemini, and Claude-style provider output, then scored by the deterministic parser, AEO engine, and leaderboard builder."
+          ? "This report was generated from live Gemini, OpenAI, and Claude output across the buyer-intent surface, then scored by the deterministic parser, AEO engine, and leaderboard builder."
           : report.metadata.source === "gemini-live"
-            ? "This report was generated from live Gemini output, then scored by the deterministic parser, AEO engine, and leaderboard builder."
+            ? "This report was generated from live Gemini output across a limited free buyer-intent query cluster, then scored by the deterministic parser, AEO engine, and leaderboard builder."
             : "This report was generated from live multi-provider output and then scored by the deterministic parser, AEO engine, and leaderboard builder.";
 
   return (
@@ -233,6 +237,9 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
             Coverage: {report.metadata.successfulProviderCount} of{" "}
             {report.metadata.expectedProviderCount} answer engines
           </span>
+          <span>Audit mode: {report.metadata.auditMode}</span>
+          <span>Cache: {report.metadata.cacheStatus}</span>
+          <span>Expanded queries: {report.expandedQueries.length}</span>
           <span>Tools: {toolsUsedLabel}</span>
           <span>Firecrawl: {firecrawlLabel}</span>
           {report.metadata.fallbackReason ? (
@@ -277,10 +284,18 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
       </div>
 
       <div className="mt-4">
+        <QueryBreakdownPanel report={report} />
+      </div>
+
+      <div className="mt-4">
         <RecommendationsPanel
           recommendations={report.recommendations}
           faqItems={report.faqItems}
         />
+      </div>
+
+      <div className="mt-4">
+        <FullAuditCta report={report} />
       </div>
 
       <div className="mt-4">

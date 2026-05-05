@@ -7,6 +7,7 @@ import {
   ProviderBadge,
 } from "@/components/brand/logo";
 import { DiagnosticLoading } from "@/components/diagnostic/diagnostic-loading";
+import { StreamingDiagnosticStatus } from "@/components/diagnostic/streaming-diagnostic-status";
 import { DiagnosticForm } from "@/components/diagnostic-form";
 import { HeroSection } from "@/components/hero-section";
 import { ReportDashboard } from "@/components/report-dashboard";
@@ -16,6 +17,8 @@ import type {
   DiagnoseRequest,
   DiagnoseResponse,
   DiagnosticFormValues,
+  ExpandedQuery,
+  ProviderId,
 } from "@/lib/types";
 
 const INITIAL_VALUES: DiagnosticFormValues = {
@@ -44,11 +47,54 @@ function validateBeforeSubmit(values: DiagnosticFormValues) {
   return null;
 }
 
+class StreamingDiagnosticError extends Error {
+  shouldFallback: boolean;
+
+  constructor(message: string, shouldFallback: boolean) {
+    super(message);
+    this.name = "StreamingDiagnosticError";
+    this.shouldFallback = shouldFallback;
+  }
+}
+
 export function HomeShell() {
   const [values, setValues] = useState<DiagnosticFormValues>(INITIAL_VALUES);
   const [isLoading, setIsLoading] = useState(false);
   const [report, setReport] = useState<DiagnoseResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [streamState, setStreamState] = useState<{
+    currentStage: string;
+    statusMessage: string;
+    expandedQueries: ExpandedQuery[];
+    providerStatuses: Array<{
+      provider: ProviderId;
+      state: "pending" | "running" | "done" | "failed" | "skipped" | "locked";
+    }>;
+  } | null>(null);
+
+  const defaultProviderStatuses = [
+    { provider: "gemini" as const, state: "pending" as const },
+    { provider: "openai" as const, state: "locked" as const },
+    { provider: "anthropic" as const, state: "locked" as const },
+  ];
+
+  const updateProviderStatus = (
+    provider: ProviderId,
+    state: "pending" | "running" | "done" | "failed" | "skipped" | "locked",
+  ) => {
+    setStreamState((current) => {
+      if (!current) {
+        return current;
+      }
+
+      return {
+        ...current,
+        providerStatuses: current.providerStatuses.map((item) =>
+          item.provider === provider ? { ...item, state } : item,
+        ),
+      };
+    });
+  };
 
   const updateField = <K extends keyof DiagnosticFormValues>(
     field: K,
@@ -69,6 +115,166 @@ export function HomeShell() {
     setErrorMessage(null);
     setReport(null);
     setIsLoading(false);
+    setStreamState(null);
+  };
+
+  const runJsonDiagnostic = async (requestBody: DiagnoseRequest) => {
+    const [response] = await Promise.all([
+      fetch("/api/diagnose", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      }),
+      new Promise((resolve) => window.setTimeout(resolve, 700)),
+    ]);
+
+    const payload = (await response.json().catch(() => null)) as
+      | DiagnoseResponse
+      | { error?: string; message?: string }
+      | null;
+
+    if (!response.ok) {
+      const message =
+        payload &&
+        typeof payload === "object" &&
+        "message" in payload &&
+        typeof payload.message === "string"
+          ? payload.message
+          : payload &&
+              typeof payload === "object" &&
+              "error" in payload &&
+              typeof payload.error === "string"
+            ? payload.error
+            : "Unable to run the diagnostic right now.";
+
+      throw new Error(message);
+    }
+
+    return payload as DiagnoseResponse;
+  };
+
+  const runStreamingDiagnostic = async (requestBody: DiagnoseRequest) => {
+    const response = await fetch("/api/diagnose/stream", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok || !response.body) {
+      throw new StreamingDiagnosticError("Streaming unavailable.", true);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let finalReport: DiagnoseResponse | null = null;
+
+    const applyEvent = (event: string, payload: unknown) => {
+      if (event === "status" && payload && typeof payload === "object") {
+        const statusPayload = payload as { stage?: string; message?: string };
+        setStreamState((current) =>
+          current
+            ? {
+                ...current,
+                currentStage: statusPayload.stage ?? current.currentStage,
+                statusMessage: statusPayload.message ?? current.statusMessage,
+              }
+            : current,
+        );
+      }
+
+      if (event === "query_expanded" && payload && typeof payload === "object") {
+        const queryPayload = payload as { queries?: ExpandedQuery[] };
+        setStreamState((current) =>
+          current
+            ? {
+                ...current,
+                expandedQueries: queryPayload.queries ?? current.expandedQueries,
+              }
+            : current,
+        );
+      }
+
+      if (event === "provider_start" && payload && typeof payload === "object") {
+        const providerPayload = payload as { provider?: ProviderId };
+        if (providerPayload.provider) {
+          updateProviderStatus(providerPayload.provider, "running");
+        }
+      }
+
+      if (event === "provider_done" && payload && typeof payload === "object") {
+        const providerPayload = payload as {
+          provider?: ProviderId;
+          success?: boolean;
+          skipped?: boolean;
+        };
+        if (providerPayload.provider) {
+          updateProviderStatus(
+            providerPayload.provider,
+            providerPayload.skipped
+              ? "skipped"
+              : providerPayload.success
+                ? "done"
+                : "failed",
+          );
+        }
+      }
+
+      if (event === "result") {
+        finalReport = payload as DiagnoseResponse;
+      }
+
+      if (event === "error" && payload && typeof payload === "object") {
+        const errorPayload = payload as { message?: string; error?: string };
+        throw new StreamingDiagnosticError(
+          errorPayload.message ||
+            errorPayload.error ||
+            "Unable to run the diagnostic right now.",
+          false,
+        );
+      }
+    };
+
+    while (true) {
+      const { value, done } = await reader.read();
+
+      if (done) {
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop() ?? "";
+
+      for (const part of parts) {
+        const lines = part.split("\n");
+        const eventLine = lines.find((line) => line.startsWith("event:"));
+        const dataLines = lines.filter((line) => line.startsWith("data:"));
+        const event = eventLine?.replace("event:", "").trim() ?? "message";
+        const data = dataLines
+          .map((line) => line.replace("data:", "").trim())
+          .join("\n");
+
+        if (!data) {
+          continue;
+        }
+
+        applyEvent(event, JSON.parse(data));
+      }
+    }
+
+    if (!finalReport) {
+      throw new StreamingDiagnosticError(
+        "Streaming finished without a report.",
+        true,
+      );
+    }
+
+    return finalReport;
   };
 
   const runDiagnostic = async () => {
@@ -79,47 +285,45 @@ export function HomeShell() {
     setReport(null);
     setErrorMessage(null);
     setIsLoading(true);
+    setStreamState({
+      currentStage: "validating",
+      statusMessage: "Validating product and buyer query",
+      expandedQueries: [],
+      providerStatuses: defaultProviderStatuses,
+    });
 
     const validationError = validateBeforeSubmit(values);
 
     if (validationError) {
       setErrorMessage(validationError);
       setIsLoading(false);
+      setStreamState(null);
       return;
     }
 
+    const requestBody: DiagnoseRequest = {
+      ...formValuesToDiagnoseRequest(values),
+      auditMode: "free",
+    };
+
     try {
-      const requestBody: DiagnoseRequest = formValuesToDiagnoseRequest(values);
+      let nextReport: DiagnoseResponse | null = null;
 
-      const [response] = await Promise.all([
-        fetch("/api/diagnose", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBody),
-        }),
-        new Promise((resolve) => window.setTimeout(resolve, 700)),
-      ]);
+      try {
+        nextReport = await runStreamingDiagnostic(requestBody);
+      } catch (error) {
+        if (
+          error instanceof StreamingDiagnosticError &&
+          !error.shouldFallback
+        ) {
+          throw error;
+        }
 
-      const payload = (await response.json().catch(() => null)) as
-        | DiagnoseResponse
-        | { error?: string }
-        | null;
-
-      if (!response.ok) {
-        const message =
-          payload &&
-          typeof payload === "object" &&
-          "error" in payload &&
-          typeof payload.error === "string"
-            ? payload.error
-            : "Unable to run the diagnostic right now.";
-
-        throw new Error(message);
+        setStreamState(null);
+        nextReport = await runJsonDiagnostic(requestBody);
       }
 
-      setReport(payload as DiagnoseResponse);
+      setReport(nextReport);
     } catch (error) {
       setReport(null);
       setErrorMessage(
@@ -129,6 +333,7 @@ export function HomeShell() {
       );
     } finally {
       setIsLoading(false);
+      setStreamState(null);
     }
   };
 
@@ -191,11 +396,22 @@ export function HomeShell() {
       </section>
       <section className="mt-6">
         {isLoading ? (
-          <DiagnosticLoading
-            mode="diagnostic"
-            productName={values.productName}
-            query={values.targetQuery}
-          />
+          streamState ? (
+            <StreamingDiagnosticStatus
+              currentStage={streamState.currentStage}
+              statusMessage={streamState.statusMessage}
+              expandedQueries={streamState.expandedQueries}
+              providerStatuses={streamState.providerStatuses}
+              productName={values.productName}
+              query={values.targetQuery}
+            />
+          ) : (
+            <DiagnosticLoading
+              mode="diagnostic"
+              productName={values.productName}
+              query={values.targetQuery}
+            />
+          )
         ) : report && !errorMessage ? (
           <ReportDashboard report={report} />
         ) : null}
