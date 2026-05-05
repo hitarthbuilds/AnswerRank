@@ -1,3 +1,4 @@
+import { ProviderBadge } from "@/components/brand/logo";
 import type { ModelResult } from "@/lib/types";
 
 const providerLabels = {
@@ -24,9 +25,7 @@ export function ModelResultCard({ result }: ModelResultCardProps) {
     <section className="rounded-[26px] border border-slate-200/80 bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-slate-500">
-            {providerLabels[result.provider]}
-          </p>
+          <ProviderBadge provider={providerLabels[result.provider]} />
           <h4 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
             {result.mentioned ? `Rank #${result.rank}` : "Not mentioned"}
           </h4>

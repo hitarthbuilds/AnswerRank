@@ -14,9 +14,35 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://answerrank-ai.vercel.app"),
   title: "AnswerRank AI",
   description:
-    "Answer engine visibility diagnostics for ecommerce brands across GPT, Gemini, and Claude.",
+    "AI visibility diagnostic for ecommerce brands. See if your product appears in AI buying answers, who outranks you, and what to rewrite.",
+  icons: {
+    icon: "/brand/favicon.svg",
+    shortcut: "/brand/favicon.svg",
+    apple: "/brand/favicon.svg",
+  },
+  openGraph: {
+    title: "AnswerRank AI",
+    description:
+      "AI visibility diagnostic for ecommerce brands. See if your product appears in AI buying answers, who outranks you, and what to rewrite.",
+    images: [
+      {
+        url: "/social-preview.svg",
+        width: 1280,
+        height: 640,
+        alt: "AnswerRank AI social preview",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AnswerRank AI",
+    description:
+      "AI visibility diagnostic for ecommerce brands. See if your product appears in AI buying answers, who outranks you, and what to rewrite.",
+    images: ["/social-preview.svg"],
+  },
 };
 
 export default function RootLayout({

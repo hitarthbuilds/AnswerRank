@@ -1,3 +1,4 @@
+import { FeatureBadge } from "@/components/brand/logo";
 import { FormField } from "@/components/form-field";
 import type { DiagnosticFormValues } from "@/lib/types";
 
@@ -39,9 +40,7 @@ export function DiagnosticForm({
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-[var(--accent)]">
-              Diagnostic Intake
-            </p>
+            <FeatureBadge label="Diagnostic Intake" kind="diagnostic" />
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
               Build the first report from structured product context
             </h2>

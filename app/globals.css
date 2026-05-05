@@ -6,7 +6,10 @@
   --card: rgba(255, 255, 255, 0.86);
   --line: rgba(16, 32, 51, 0.09);
   --muted: #5f6f82;
-  --accent: #0f766e;
+  --accent: #0891b2;
+  --accent-secondary: #7c3aed;
+  --accent-success: #10b981;
+  --surface-dark: #07131c;
 }
 
 @theme inline {
@@ -30,7 +33,7 @@ body {
   font-family: var(--font-manrope), sans-serif;
   background-image:
     radial-gradient(circle at top left, rgba(14, 165, 233, 0.16), transparent 24%),
-    radial-gradient(circle at top right, rgba(15, 118, 110, 0.12), transparent 28%),
+    radial-gradient(circle at top right, rgba(124, 58, 237, 0.11), transparent 30%),
     linear-gradient(180deg, #f8fbff 0%, #eff4f9 100%);
 }
 

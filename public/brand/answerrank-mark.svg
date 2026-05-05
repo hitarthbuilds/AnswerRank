@@ -1,0 +1,20 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">AnswerRank AI mark</title>
+  <desc id="desc">Speech-bubble mark with ranking bars and an AI sparkle.</desc>
+  <defs>
+    <linearGradient id="mark-accent" x1="69" y1="52" x2="188" y2="188" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="mark-success" x1="72" y1="128" x2="160" y2="166" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22D3EE"/>
+      <stop offset="1" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+  <path d="M53 59.5C53 40.446 68.446 25 87.5 25H166.5C185.554 25 201 40.446 201 59.5V135.2C201 154.254 185.554 169.7 166.5 169.7H116.8L82.7 200.8C76.249 206.704 66 202.128 66 193.384V169.7H87.5C68.446 169.7 53 154.254 53 135.2V59.5Z" fill="#07131C" stroke="rgba(56,189,248,0.28)" stroke-width="4"/>
+  <rect x="84" y="110" width="23" height="34" rx="10" fill="#34D399"/>
+  <rect x="117" y="86" width="23" height="58" rx="10" fill="url(#mark-success)"/>
+  <rect x="150" y="64" width="23" height="80" rx="10" fill="url(#mark-accent)"/>
+  <path d="M76 158.8C97.78 139.463 118.47 133.239 141 135.869C154.24 137.414 166.194 142.262 183 152.5" stroke="rgba(226,232,240,0.52)" stroke-width="5" stroke-linecap="round"/>
+  <path d="M174.8 46 180.4 59.6 194 65.2 180.4 70.8 174.8 84.4 169.2 70.8 155.6 65.2 169.2 59.6 174.8 46Z" fill="#E0E7FF"/>
+</svg>

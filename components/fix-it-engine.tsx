@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { FeatureBadge } from "@/components/brand/logo";
 import type { DiagnoseResponse, FixItResponse } from "@/lib/types";
 
 type FixItEngineProps = {
@@ -76,9 +77,7 @@ export function FixItEngine({ report }: FixItEngineProps) {
     <section className="rounded-[26px] border border-slate-200/80 bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-slate-500">
-            Fix It Engine
-          </p>
+          <FeatureBadge label="Fix It Engine" kind="magic" />
           <h4 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">
             Generate a stronger listing rewrite from the diagnostic
           </h4>

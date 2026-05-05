@@ -1,3 +1,8 @@
+import {
+  AnswerRankMark,
+  FeatureBadge,
+  ProviderBadge,
+} from "@/components/brand/logo";
 import { CompetitorLeaderboard } from "@/components/competitor-leaderboard";
 import { FixItEngine } from "@/components/fix-it-engine";
 import { InsightsPanel } from "@/components/insights-panel";
@@ -164,29 +169,66 @@ export function ReportDashboard({ report }: ReportDashboardProps) {
   return (
     <section className="section-shell overflow-hidden rounded-[28px] p-6 sm:p-7">
       <div className="flex flex-col gap-5 border-b border-slate-200/80 pb-6 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-[var(--accent)]">
-            {report.metadata.source === "mock"
-              ? "Mock DiagnoseResponse"
-              : "DiagnoseResponse"}
-          </p>
-          <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
-            {report.productName} scores {report.overallScore}/100 for{" "}
-            <span className="text-slate-700">&quot;{report.targetQuery}&quot;</span>
-          </h3>
-          <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">
-            {subtitle}
-          </p>
+        <div className="min-w-0">
+          <div className="flex items-start gap-4">
+            <AnswerRankMark className="mt-0.5 h-12 w-12" />
+            <div className="min-w-0">
+              <div className="flex flex-wrap gap-2">
+                <FeatureBadge
+                  label={
+                    report.metadata.source === "mock"
+                      ? "Mock DiagnoseResponse"
+                      : "DiagnoseResponse"
+                  }
+                  kind={report.metadata.source === "mock" ? "mock" : "live"}
+                />
+                <FeatureBadge label="Source Metadata" kind="metadata" />
+              </div>
+              <h3 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+                {report.productName} scores {report.overallScore}/100 for{" "}
+                <span className="text-slate-700">&quot;{report.targetQuery}&quot;</span>
+              </h3>
+              <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">
+                {subtitle}
+              </p>
+            </div>
+          </div>
         </div>
         <div className="flex flex-col gap-2 rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
-          <span className="font-medium text-slate-800">
-            Source: {sourceLabel}
-          </span>
+          <div className="flex flex-wrap gap-2">
+            <ProviderBadge provider={sourceLabel} />
+            {report.metadata.firecrawlStatus === "used" ? (
+              <ProviderBadge provider="Firecrawl" />
+            ) : report.metadata.firecrawlStatus === "failed" ? (
+              <ProviderBadge provider="Firecrawl attempted" />
+            ) : null}
+          </div>
+          <span className="font-medium text-slate-800">Source: {sourceLabel}</span>
           <span>Mode: {report.metadata.mode}</span>
           <span>Demo mode: {report.metadata.demoMode ? "true" : "false"}</span>
           <span>Providers configured: {providersConfiguredLabel}</span>
           <span>Providers used: {normalizedProvidersUsedLabel}</span>
+          {report.metadata.providersUsed.length ? (
+            <div className="flex flex-wrap gap-2">
+              {report.metadata.providersUsed.map((provider) => (
+                <ProviderBadge
+                  key={`used-${provider}`}
+                  provider={formatServiceLabel(provider)}
+                />
+              ))}
+            </div>
+          ) : null}
           <span>Providers skipped: {providersSkippedLabel}</span>
+          {report.metadata.providersSkipped.length ? (
+            <div className="flex flex-wrap gap-2">
+              {report.metadata.providersSkipped.map((provider) => (
+                <ProviderBadge
+                  key={`skipped-${provider}`}
+                  provider={`${formatServiceLabel(provider)} optional`}
+                />
+              ))}
+            </div>
+          ) : null}
           <span>
             Coverage: {report.metadata.successfulProviderCount} of{" "}
             {report.metadata.expectedProviderCount} answer engines

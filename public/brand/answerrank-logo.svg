@@ -1,0 +1,29 @@
+<svg width="980" height="220" viewBox="0 0 980 220" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">AnswerRank AI logo</title>
+  <desc id="desc">AnswerRank AI logo with brand mark and wordmark.</desc>
+  <defs>
+    <linearGradient id="logo-accent" x1="57" y1="44" x2="154" y2="154" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="logo-success" x1="60" y1="106" x2="132" y2="138" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22D3EE"/>
+      <stop offset="1" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+  <path d="M45 49.5C45 33.76 57.76 21 73.5 21H140.5C156.24 21 169 33.76 169 49.5V112.5C169 128.24 156.24 141 140.5 141H103.1L75.8 165.7C70.471 170.52 62 166.791 62 159.665V141H73.5C57.76 141 45 128.24 45 112.5V49.5Z" fill="#07131C" stroke="rgba(56,189,248,0.28)" stroke-width="3"/>
+  <rect x="71" y="92" width="18" height="27" rx="8" fill="#34D399"/>
+  <rect x="97" y="73" width="18" height="46" rx="8" fill="url(#logo-success)"/>
+  <rect x="123" y="56" width="18" height="63" rx="8" fill="url(#logo-accent)"/>
+  <path d="M64 131.1C81.343 115.636 97.816 110.658 115.75 112.761C126.288 113.996 135.8 117.873 149.182 126.059" stroke="rgba(226,232,240,0.52)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M142.6 42 147 52.4 157.4 56.8 147 61.2 142.6 71.6 138.2 61.2 127.8 56.8 138.2 52.4 142.6 42Z" fill="#E0E7FF"/>
+  <text x="214" y="101" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="76" font-weight="700" letter-spacing="-2">
+    AnswerRank
+  </text>
+  <text x="741" y="101" fill="#0EA5E9" font-family="Arial, Helvetica, sans-serif" font-size="76" font-weight="700" letter-spacing="-2">
+    AI
+  </text>
+  <text x="218" y="154" fill="#64748B" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" letter-spacing="6.6">
+    AI VISIBILITY DIAGNOSTIC
+  </text>
+</svg>

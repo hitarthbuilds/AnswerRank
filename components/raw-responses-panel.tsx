@@ -1,3 +1,4 @@
+import { FeatureBadge, ProviderBadge } from "@/components/brand/logo";
 import type { ModelResult, RawModelResponse } from "@/lib/types";
 
 const providerLabels = {
@@ -17,9 +18,7 @@ export function RawResponsesPanel({
 }: RawResponsesPanelProps) {
   return (
     <section className="rounded-[26px] border border-slate-200/80 bg-white p-5 shadow-sm">
-      <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-slate-500">
-        Raw Responses
-      </p>
+      <FeatureBadge label="Raw Responses" kind="metadata" />
       <h4 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">
         Expand the provider outputs
       </h4>
@@ -37,9 +36,7 @@ export function RawResponsesPanel({
             >
               <summary className="flex cursor-pointer list-none flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-800">
-                    {providerLabels[response.provider]}
-                  </p>
+                  <ProviderBadge provider={providerLabels[response.provider]} />
                   <p className="mt-1 text-sm text-slate-500">
                     {response.query}
                   </p>

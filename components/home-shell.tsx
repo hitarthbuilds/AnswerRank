@@ -1,6 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import {
+  AnswerRankLogo,
+  FeatureBadge,
+  ProviderBadge,
+} from "@/components/brand/logo";
 import { DiagnosticForm } from "@/components/diagnostic-form";
 import { HeroSection } from "@/components/hero-section";
 import { LoadingStatePlaceholder } from "@/components/loading-state-placeholder";
@@ -125,6 +130,13 @@ export function HomeShell() {
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-6 sm:px-6 lg:px-8">
+      <header className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <AnswerRankLogo />
+        <div className="flex flex-wrap gap-2">
+          <FeatureBadge label="AI Visibility Diagnostic" kind="diagnostic" />
+          <ProviderBadge provider="Live Partial" />
+        </div>
+      </header>
       <HeroSection />
       <section
         id="workspace"
@@ -140,9 +152,7 @@ export function HomeShell() {
         />
         <aside className="section-shell grid-noise grid rounded-[28px] p-6">
           <div className="rounded-3xl border border-white/70 bg-white/75 p-6 shadow-[0_12px_35px_rgba(15,23,42,0.08)]">
-            <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-[var(--accent)]">
-              Live Demo Pipeline
-            </p>
+            <FeatureBadge label="Live Demo Pipeline" kind="context" />
             <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">
               Gemini answer engine + Firecrawl context
             </h2>
@@ -151,6 +161,11 @@ export function HomeShell() {
               AnswerRank extracts product context, queries Gemini, parses brand
               mentions, scores AI visibility, and generates listing fixes.
             </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <ProviderBadge provider="Gemini" />
+              <ProviderBadge provider="Firecrawl" />
+              <FeatureBadge label="AEO scoring" kind="score" />
+            </div>
             <div className="mt-6 space-y-3">
               {[
                 "Gemini live answer-engine response",

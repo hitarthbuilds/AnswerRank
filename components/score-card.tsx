@@ -1,3 +1,4 @@
+import { FeatureBadge } from "@/components/brand/logo";
 import type { DiagnoseResponse, ScoreBreakdown } from "@/lib/types";
 
 const breakdownConfig: Array<{
@@ -82,9 +83,7 @@ export function ScoreCard({ report }: ScoreCardProps) {
 
   return (
     <section className="rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-sm">
-      <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-[var(--accent)]">
-        Score Card
-      </p>
+      <FeatureBadge label="Scorecard" kind="score" />
       <div className="mt-5 flex items-center justify-center">
         <div
           className="relative flex h-44 w-44 items-center justify-center rounded-full"

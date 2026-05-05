@@ -1,3 +1,4 @@
+import { FeatureBadge } from "@/components/brand/logo";
 import type {
   FAQItem,
   Recommendation,
@@ -35,9 +36,7 @@ export function RecommendationsPanel({
     <section className="rounded-[26px] border border-slate-200/80 bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-slate-500">
-            Recommendations
-          </p>
+          <FeatureBadge label="Recommendations" kind="rewrite" />
           <h4 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">
             Highest-leverage copy moves from the current report
           </h4>
@@ -76,9 +75,7 @@ export function RecommendationsPanel({
         ))}
       </div>
       <div className="mt-6 rounded-3xl border border-slate-200/80 bg-slate-50/70 p-4">
-        <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-slate-500">
-          FAQ Preview
-        </p>
+        <FeatureBadge label="FAQ Preview" kind="context" />
         <div className="mt-3 grid gap-3 lg:grid-cols-2">
           {faqItems.map((item) => (
             <div

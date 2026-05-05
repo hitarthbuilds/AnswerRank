@@ -1,0 +1,17 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="AnswerRank AI favicon">
+  <defs>
+    <linearGradient id="favicon-accent" x1="16" y1="12" x2="47" y2="47" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="favicon-success" x1="17" y1="30" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22D3EE"/>
+      <stop offset="1" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+  <path d="M12 15.2A8.2 8.2 0 0 1 20.2 7h20.4A8.2 8.2 0 0 1 48.8 15.2V33A8.2 8.2 0 0 1 40.6 41.2H28.4L20.6 48.2c-1.54 1.39-4.04.31-4.04-1.76v-5.24A8.2 8.2 0 0 1 12 33V15.2Z" fill="#07131C" stroke="rgba(56,189,248,0.32)" stroke-width="1.4"/>
+  <rect x="22" y="27" width="5.2" height="8.4" rx="2.4" fill="#34D399"/>
+  <rect x="29.8" y="21.4" width="5.2" height="14" rx="2.4" fill="url(#favicon-success)"/>
+  <rect x="37.6" y="17" width="5.2" height="18.4" rx="2.4" fill="url(#favicon-accent)"/>
+  <path d="M20 39.4c4.86-4.22 9.13-5.57 14.08-4.98 2.96.36 5.42 1.26 8.92 3.73" stroke="rgba(226,232,240,0.52)" stroke-width="1.4" stroke-linecap="round"/>
+</svg>

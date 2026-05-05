@@ -1,130 +1,155 @@
+<p align="center">
+  <img src="public/brand/answerrank-logo.svg" alt="AnswerRank AI logo" width="420" />
+</p>
+
+<p align="center">
+  AI visibility diagnostic for ecommerce brands.
+</p>
+
 # AnswerRank AI
 
-![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs)
+AnswerRank AI helps ecommerce brands understand how their products appear inside AI buying answers.
+
+When a buyer asks:
+"What is the best magnesium glycinate supplement for sleep and muscle recovery in India?"
+
+AnswerRank checks whether your product appears, which competitors outrank you, how visible your brand is, and what you should change in your listing.
+
+![Next.js](https://img.shields.io/badge/Next.js-App%20Router-black?logo=nextdotjs)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
 ![Gemini](https://img.shields.io/badge/Gemini-live-4285F4?logo=google)
-![Firecrawl](https://img.shields.io/badge/Firecrawl-context%20extraction-0F172A)
-![Vercel-ready](https://img.shields.io/badge/Vercel-ready-black?logo=vercel)
+![Firecrawl](https://img.shields.io/badge/Firecrawl-context%20tool-111827)
+![Vercel](https://img.shields.io/badge/Vercel-ready-black?logo=vercel)
 
-AnswerRank AI shows ecommerce brands how their products appear inside AI buying answers, who outranks them, and what to change.
+## Live Demo
 
-## Why this exists
+[https://answerrank-ai.vercel.app](https://answerrank-ai.vercel.app)
 
-Customers are starting to ask AI assistants what to buy.
+Primary demo sample:
 
-Brands already optimize for Google, Amazon, and social distribution, but most still have no clear view into whether AI answer engines mention them, ignore them, or recommend a competitor instead.
+- Product: `HK Vitals 100% Magnesium Glycinate`
+- Query: `best magnesium glycinate supplement for sleep and muscle recovery in India`
+- Competitors:
+  - `Tata 1mg Magnesium Glycinate`
+  - `HealthyHey Magnesium Glycinate`
+  - `Himalayan Organics Magnesium`
+  - `Carbamide Forte Magnesium`
+  - `Wellbeing Nutrition Magnesium`
 
-AnswerRank AI turns that visibility problem into a structured diagnostic report: what the answer engine said, where the product ranked, which brands won, how confident the result is, and what to fix in the listing next.
+## Built For
 
-## What it does
+Pixii.ai Founding Engineer project round.
 
-- Accepts product name, product URL, product description, target buyer query, competitors, audience, and region
-- Extracts product-page context with Firecrawl when a URL is available
-- Queries Gemini live as the default answer-engine provider
-- Supports optional OpenAI and Anthropic adapters that activate automatically when keys are present
-- Parses product and competitor mentions deterministically
-- Detects ranking position across provider responses
-- Scores AI visibility with provider-coverage adjustment
-- Builds a competitor leaderboard
-- Generates listing recommendations
-- Generates rewrites with the Fix It Engine
+## Why This Exists
+
+Ecommerce brands already track Google rankings, Amazon listings, paid acquisition, and social distribution. The buying surface is changing again: customers increasingly ask AI tools what to buy.
+
+That creates a new visibility problem. A brand can have strong SEO and strong marketplace presence while still being absent from AI-generated buying answers. Or worse, AI may recommend a competitor with clearer copy, stronger trust signals, or better product framing.
+
+AnswerRank AI is built to make that visible. It turns fuzzy LLM output into a structured diagnostic: whether a product appears, who outranks it, how confident the result is, and what listing changes would improve its chances of being surfaced next time.
+
+## What It Does
+
+- analyzes AI buying answers for product visibility
+- checks product and competitor mentions
+- scores AI search visibility
+- uses Gemini as a live answer engine
+- uses Firecrawl for product-page context
+- shows source metadata and provider coverage
+- generates title, bullets, FAQ, and positioning fixes
+
+## Core Workflow
+
+`diagnose visibility -> understand competitors -> fix the listing`
 
 ## Screenshots
 
-![Homepage](public/screenshots/homepage.png)
-![Diagnostic Form](public/screenshots/diagnostic-form.png)
-![Mock Report](public/screenshots/mock-report.png)
-![Source Metadata](public/screenshots/source-metadata.png)
-![Fix It Engine](public/screenshots/fix-it-engine.png)
+![AnswerRank AI homepage hero](public/screenshots/homepage.png)
+![AnswerRank AI diagnostic form with HK Vitals sample](public/screenshots/diagnostic-form.png)
+![AnswerRank AI report dashboard](public/screenshots/report.png)
+![AnswerRank AI source metadata card](public/screenshots/source-metadata.png)
+![AnswerRank AI Fix It Engine output](public/screenshots/fix-it-engine.png)
 
-## Demo modes
+## Brand Assets
 
-### Mock mode
+Custom SVG brand assets live here:
 
-Stable seeded OpenAI/Gemini/Claude-style responses.
+- `public/brand/answerrank-logo.svg`
+- `public/brand/answerrank-mark.svg`
+- `public/brand/answerrank-wordmark.svg`
+- `public/brand/favicon.svg`
 
-This is the safest path for reproducible demos, reviewer testing, and screenshot capture. It keeps report output stable even when no external keys are available.
-
-### Primary demo sample
-
-The default sample is now built around **HK Vitals 100% Magnesium Glycinate** for an India-specific sleep and muscle recovery query.
-
-The deployed demo runs stable mock mode for reproducible review, while the same app supports live Gemini + Firecrawl diagnostics when environment variables are configured.
-
-### Live mode
-
-Gemini runs live.
-
-Firecrawl extracts product-page context when a product URL is provided.
-
-OpenAI and Anthropic adapters are implemented as optional providers and activate automatically when valid keys are added later. Missing optional keys are skipped gracefully.
-
-## APIs / tools used
-
-This project satisfies the take-home requirement of using 2+ APIs/tools beyond the AI coding assistant:
-
-1. Gemini API  
-   Used for live answer-engine generation.
-
-2. Firecrawl API  
-   Used for extracting product-page context from submitted URLs.
-
-Internal tools:
-
-- Deterministic parser
-- AEO scoring engine
-- Coverage-adjusted scoring
-- Competitor leaderboard builder
-- Fix It Engine
-
-OpenAI and Anthropic are implemented as optional adapters. They are not required for the main live demo path and are skipped cleanly when keys are absent.
+These are custom brand assets created for this project. They do not rely on third-party paid artwork or imported provider logos.
 
 ## Architecture
 
 ```mermaid
 flowchart TD
-    A[User submits product + query] --> B[Input validation]
-    B --> C{Demo mode?}
-    C -->|Yes| D[Seeded mock answer-engine responses]
-    C -->|No| E[Firecrawl extracts product-page context]
-    E --> F[Live provider runner]
-    F --> G[Gemini provider]
-    F --> H[Optional OpenAI provider]
-    F --> I[Optional Anthropic provider]
-    D --> J[Deterministic mention parser]
-    G --> J
-    H --> J
-    I --> J
-    J --> K[AEO scoring engine]
-    K --> L[Coverage adjustment]
-    L --> M[Competitor leaderboard]
-    M --> N[Recommendations]
-    N --> O[Fix It Engine]
-    O --> P[Report dashboard]
+    A[User enters product, URL, query, competitors] --> B[/api/diagnose]
+    B --> C[Validate input]
+    C --> D[Firecrawl extracts product context]
+    C --> E[Gemini answer engine]
+    D --> E
+    E --> F[Parse product and competitor mentions]
+    F --> G[AEO scoring engine]
+    G --> H[Visibility report]
+    H --> I[/api/fix-it]
+    I --> J[Rewrite title, bullets, FAQ, positioning]
 ```
 
-### Coverage adjustment
+## Scoring Model
 
-Single-provider live runs should not pretend to represent the full AI answer surface.
+The AEO score is a structured visibility score, not a generic LLM confidence number.
 
-AnswerRank keeps the sampled score from the raw provider output, then caps the displayed score when fewer than 3 planned answer engines are available.
+At a high level it combines:
 
-![Coverage adjustment](public/screenshots/coverage-adjustment.png)
+- mention frequency
+- rank position
+- sentiment/confidence
+- competitor gap
+- query relevance
+- provider coverage adjustment
 
-## Getting started
+This lets the app distinguish between "the product was technically mentioned once" and "the product is consistently surfaced in a strong ranking position across the available answer engines."
 
-```bash
-npm install
-npm run dev
-```
+## Source Metadata
 
-Open [http://localhost:3000](http://localhost:3000).
+AnswerRank does not pretend full confidence when only one provider runs.
 
-## Environment
+Every report surfaces:
 
-Copy `.env.example` to `.env` and fill the keys you need.
+- providers used
+- providers skipped
+- coverage count
+- Firecrawl status
+- mock/live mode
 
-### Mock mode
+That matters because a Gemini-only run should not be presented as if it covered the full AI answer surface. The app keeps the sampled score from the live result, then applies provider coverage adjustment when fewer than three planned answer engines are available.
+
+## Fix It Engine
+
+After the visibility diagnostic, the Fix It Engine generates:
+
+- rewritten product title
+- listing bullets
+- FAQ
+- positioning statement
+
+The goal is not just to explain why a product underperformed. It is to turn that diagnosis into listing copy a brand can actually use.
+
+## Tech Stack
+
+- Next.js App Router
+- TypeScript
+- Tailwind CSS
+- Gemini API
+- Firecrawl API
+- optional OpenAI / Anthropic adapters
+- Vercel
+
+## Environment Variables
+
+Use `.env.example` as the starting point:
 
 ```bash
 NEXT_PUBLIC_DEMO_MODE=true
@@ -134,45 +159,27 @@ OPENAI_API_KEY=
 ANTHROPIC_API_KEY=
 ```
 
-### Gemini + Firecrawl live mode
+Rules:
+
+- `NEXT_PUBLIC_DEMO_MODE=true` uses deterministic mock mode
+- `NEXT_PUBLIC_DEMO_MODE=false` enables live provider mode
+- API keys must stay server-side
+- do not expose secrets as `NEXT_PUBLIC` variables
+
+## Running Locally
 
 ```bash
-NEXT_PUBLIC_DEMO_MODE=false
-GEMINI_API_KEY=your_key
-FIRECRAWL_API_KEY=your_key
-OPENAI_API_KEY=
-ANTHROPIC_API_KEY=
+npm install
+npm run dev
 ```
 
-### Full 3-provider live mode
+Then open [http://localhost:3000](http://localhost:3000).
 
-```bash
-NEXT_PUBLIC_DEMO_MODE=false
-GEMINI_API_KEY=your_key
-OPENAI_API_KEY=your_key
-ANTHROPIC_API_KEY=your_key
-FIRECRAWL_API_KEY=your_key
-```
+## Production / Vercel Notes
 
-Adding valid OpenAI and Anthropic keys later automatically expands the live run to full 3-provider coverage without code changes.
+Changing `NEXT_PUBLIC_DEMO_MODE` requires a redeploy because it is bundled at build time.
 
-## Deploying on Vercel
-
-AnswerRank AI is Vercel-ready as a standard Next.js App Router deployment. No database, auth setup, background jobs, or extra infrastructure is required.
-
-### Recommended reviewer deployment
-
-For stable reviewer testing, deploy with:
-
-```bash
-NEXT_PUBLIC_DEMO_MODE=true
-```
-
-This guarantees the app renders a complete deterministic mock report without depending on live provider credits or third-party API availability.
-
-### Live Gemini + Firecrawl deployment
-
-For live mode, set these Vercel Environment Variables:
+Expected live setup:
 
 ```bash
 NEXT_PUBLIC_DEMO_MODE=false
@@ -184,12 +191,12 @@ ANTHROPIC_API_KEY=
 
 Notes:
 
-- Gemini runs as the live answer engine
-- Firecrawl extracts product-page context when a product URL is provided
-- OpenAI and Anthropic are skipped gracefully if their keys are empty
-- Coverage adjustment caps the displayed score when fewer than 3 answer engines run
+- Gemini is the main live answer-engine provider
+- Firecrawl extracts product-page context when a product URL is present
+- OpenAI and Anthropic are optional adapters and can stay empty
+- mock mode remains available for reproducible demos and reviewer testing
 
-## Live demo deployment
+## Live Demo Deployment
 
 For live Gemini + Firecrawl mode on Vercel, set:
 
@@ -201,7 +208,7 @@ OPENAI_API_KEY=
 ANTHROPIC_API_KEY=
 ```
 
-Then redeploy. Vercel environment variable changes require a new deployment before the app picks them up.
+Then redeploy.
 
 Expected source card:
 
@@ -209,83 +216,28 @@ Expected source card:
 - Providers used: `Gemini`
 - Providers skipped: `OpenAI, Anthropic`
 - Coverage: `1/3`
-- Firecrawl: `used` or `attempted but failed`
+- Firecrawl: `used` or `attempted`
 
 Only `NEXT_PUBLIC_DEMO_MODE` is public. API keys must remain server-side.
 
-### Full provider deployment
+## Social Preview
 
-To enable full 3-provider live mode, add:
+Repository and deployment preview asset:
 
-```bash
-OPENAI_API_KEY=your_openai_key
-ANTHROPIC_API_KEY=your_anthropic_key
-```
+- `public/social-preview.svg`
 
-With all provider keys configured:
+This is a custom SVG social preview designed for GitHub and deployment metadata.
 
-- Gemini, OpenAI, and Anthropic run live
-- Coverage becomes `3/3`
-- `coverageAdjusted` becomes `false`
-- `sampledScore` and `overallScore` should match unless another intentional scoring rule applies
+## What I Would Build Next
 
-## Screenshot automation
+- weekly AI visibility tracking
+- query expansion for buyer-intent clusters
+- OpenAI, Claude, and Perplexity provider runs
+- historical visibility charts
+- shareable PDF reports
+- Shopify and Amazon listing integrations
+- automated listing improvement experiments
 
-README screenshots are generated with Playwright Chromium.
+## Keywords
 
-```bash
-npm install
-npx playwright install chromium
-NEXT_PUBLIC_DEMO_MODE=true npm run dev
-npm run screenshots
-```
-
-Notes:
-
-- The script expects an already-running local app at `http://localhost:3000`
-- For stable README assets, run the app in mock mode before capturing
-- Screenshots are saved to `public/screenshots`
-- If capture fails, the script cleans up temp output instead of leaving partial assets behind
-
-## Validation
-
-```bash
-npm run lint
-npm run build
-```
-
-## Deployment checklist
-
-Before deploying:
-
-- Run `npm run lint`
-- Run `npm run build`
-- Confirm `.env.local` is not committed
-- Confirm `.env.example` is committed
-- Confirm screenshots are present under `public/screenshots`
-- Confirm README screenshot links render correctly on GitHub
-
-After deploying:
-
-- Open the deployed URL
-- Run a mock diagnostic if `NEXT_PUBLIC_DEMO_MODE=true`
-- Confirm the report renders
-- Confirm the Fix It Engine works
-- Check Vercel function logs if live mode fails
-
-## Current scope
-
-This repo intentionally stays focused on the take-home MVP:
-
-- No auth
-- No billing
-- No server-side database
-- No streaming response UI
-- No scheduled tracking jobs
-
-## Deferred v2 features
-
-- Streaming responses
-- Query expansion
-- Scheduled tracking
-- Shopify/Amazon listing update workflows
+AI search optimization, answer engine optimization, AEO, ecommerce AI, AI buying answers, LLM SEO, product listing optimization, Amazon listing intelligence, Gemini API, Firecrawl, AI visibility tracking.

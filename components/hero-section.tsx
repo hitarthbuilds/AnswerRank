@@ -1,3 +1,9 @@
+import {
+  AnswerRankLogo,
+  FeatureBadge,
+  ProviderBadge,
+} from "@/components/brand/logo";
+
 const metrics = [
   { value: "Gemini live + adapters", label: "Answer engines" },
   { value: "<3 min", label: "Demo length" },
@@ -10,11 +16,9 @@ export function HeroSection() {
       <div className="absolute inset-y-0 right-0 hidden w-1/2 bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.22),transparent_42%)] lg:block" />
       <div className="relative grid gap-10 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-end">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2 shadow-sm">
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-            <span className="font-mono text-[11px] uppercase tracking-[0.3em] text-slate-600">
-              AnswerRank AI / AEO Diagnostic
-            </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <AnswerRankLogo />
+            <FeatureBadge label="AI Visibility Diagnostic" kind="diagnostic" />
           </div>
           <h1 className="mt-6 max-w-3xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
             See how your product shows up inside AI buying answers.
@@ -34,6 +38,13 @@ export function HeroSection() {
             <div className="inline-flex items-center rounded-full border border-slate-200 bg-white/85 px-4 py-3 text-sm text-slate-600 shadow-sm">
               Live Gemini + Firecrawl demo with mock fallback.
             </div>
+          </div>
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <ProviderBadge provider="Gemini live" />
+            <ProviderBadge provider="Firecrawl context" />
+            <FeatureBadge label="AEO scoring" kind="score" />
+            <FeatureBadge label="Fix It Engine" kind="magic" />
+            <ProviderBadge provider="Mock fallback" />
           </div>
         </div>
         <div className="grid gap-4">

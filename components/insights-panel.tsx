@@ -1,3 +1,5 @@
+import { FeatureBadge } from "@/components/brand/logo";
+
 type InsightsPanelProps = {
   insights: string[];
 };
@@ -5,9 +7,7 @@ type InsightsPanelProps = {
 export function InsightsPanel({ insights }: InsightsPanelProps) {
   return (
     <section className="rounded-[26px] border border-slate-200/80 bg-white p-5 shadow-sm">
-      <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-slate-500">
-        Insights
-      </p>
+      <FeatureBadge label="Insights" kind="insight" />
       <h4 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">
         Why competitors are outranking this listing
       </h4>
